@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIRCA - AFAC | Sistema Integral de Asistencia y ROLFI</title>
+
+  <!-- Librerías de QR y Generación de PDF (html2pdf.js) -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Fuentes e Iconos Institucionales -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --afac-guinda: #691C32;
+      --afac-guinda-dark: #471221;
+      --afac-guinda-light: #8A2643;
+      --afac-dorado: #BC955C;
+      --afac-dorado-light: #FDF8ED;
+      --afac-bg: #F1F5F9;
+      --card-bg: #FFFFFF;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border-color: #E2E8F0;
+      --shadow-soft: 0 10px 30px -5px rgba(105, 28, 50, 0.08);
+      --shadow-hover: 0 20px 35px -5px rgba(105, 28, 50, 0.15);
+    }
+
+    [data-theme="dark"] {
+      --afac-bg: #0B0F19;
+      --card-bg: #1E293B;
+      --text-main: #FFFFFF;
+      --text-muted: #CBD5E1;
+      --border-color: #334155;
+      --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+      --shadow-hover: 0 20px 35px -5px rgba(0, 0, 0, 0.6);
+    }
+
+    * { box-sizing: border-box; font-family: 'Montserrat', sans-serif; transition: background 0.3s, color 0.3s; }
+
+    body {
+      margin: 0;
+      background: var(--afac-bg);
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--afac-guinda-dark) 0%, var(--afac-guinda) 50%, #521527 100%);
+      color: white;
+      padding: 20px 40px;
+      box-shadow: 0 6px 25px rgba(0,0,0,0.2);
+      border-bottom: 4px solid var(--afac-dorado);
+    }
+
+    header .header-content {
+      max-width: 1440px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .brand-section { display: flex; align-items: center; gap: 24px; }
+    .logos-container {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(255, 255, 255, 0.98);
+      padding: 8px 18px; border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      border: 1px solid rgba(188, 149, 92, 0.4);
+    }
+    .logo-badge-text {
+      font-weight: 800; font-size: 22px; color: var(--afac-guinda);
+      letter-spacing: 2px; display: flex; align-items: center; gap: 6px;
+    }
+    .logo-badge-text::before { content: "✈"; font-size: 18px; color: var(--afac-dorado); }
+
+    .header-titles h1 { margin: 0; font-size: 22px; font-weight: 800; text-transform: uppercase; color: #FFFFFF; }
+    .header-titles p { margin: 3px 0 0; font-size: 12px; color: #FEE6B4; font-weight: 600; }
+
+    .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .firebase-status {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px; color: white;
+    }
+    .led-green { width: 8px; height: 8px; background-color: #22C55E; border-radius: 50%; box-shadow: 0 0 8px #22C55E; }
+
+    .btn-theme, .select-view {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white; padding: 8px 16px; border-radius: 20px;
+      font-size: 12px; cursor: pointer; font-weight: 600; outline: none;
+    }
+    .select-view option { background: var(--afac-guinda-dark); color: white; }
+
+    .nav-tabs-container {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .nav-tabs {
+      max-width: 1440px; margin: auto; padding: 0 25px; display: flex; gap: 15px;
+    }
+    .tab-btn {
+      background: transparent; border: none; padding: 16px 24px; font-weight: 700; font-size: 14px;
+      color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .tab-btn:hover { color: var(--afac-guinda); }
+    .tab-btn.active { color: var(--afac-guinda); border-bottom-color: var(--afac-guinda); background: rgba(105, 28, 50, 0.04); }
+
+    .container { max-width: 1440px; margin: 30px auto; padding: 0 25px; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 28px; }
+    .stat-card {
+      background: var(--card-bg); border-radius: 18px; padding: 24px; border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-soft); border-left: 6px solid var(--afac-guinda);
+    }
+    .stat-card.success { border-left-color: #16A34A; }
+    .stat-card.warning { border-left-color: #D97706; }
+    .stat-card.danger { border-left-color: #DC2626; }
+    .stat-card h3 { margin: 0 0 8px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; font-weight: 700; }
+    .stat-card .number { font-size: 34px; font-weight: 800; color: var(--text-main); }
+    .stat-card.success .number { color: #16A34A; }
+    .stat-card.warning .number { color: #D97706; }
+    .stat-card.danger .number { color: #DC2626; }
+
+    .card { background: var(--card-bg); border-radius: 20px; padding: 30px; margin-bottom: 28px; border: 1px solid var(--border-color); box-shadow: var(--shadow-soft); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 24px; border-bottom: 2px solid var(--border-color); padding-bottom: 16px; }
+    .card-header h2 { margin: 0; color: var(--text-main); font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+
+    button {
+      border: none; border-radius: 10px; padding: 12px 22px; cursor: pointer; font-weight: 700; font-size: 13px;
+      transition: all 0.25s; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: inline-flex; align-items: center; gap: 8px;
+    }
+    button:hover { opacity: 0.95; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.12); }
+    .btn-primary { background: var(--afac-guinda); color: white; }
+    .btn-success { background: #16A34A; color: white; }
+    .btn-danger { background: #DC2626; color: white; }
+    .btn-secondary { background: var(--afac-bg); color: var(--text-main); border: 1px solid var(--border-color); box-shadow: none; }
+    .control-buttons { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+    .profile-card-layout { display: grid; grid-template-columns: 200px 1fr; gap: 25px; align-items: center; }
+    .avatar-box {
+      background: linear-gradient(135deg, var(--afac-bg) 0%, var(--border-color) 100%);
+      border: 3px solid var(--afac-dorado); border-radius: 20px; width: 180px; height: 180px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; margin: auto;
+      overflow: hidden; position: relative;
+    }
+    .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-icon { font-size: 55px; color: var(--afac-guinda); }
+
+    .user-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .info-box { background: var(--afac-bg); border-radius: 12px; padding: 14px 18px; border: 1px solid var(--border-color); }
+    .info-box small { display: block; color: var(--text-muted); font-size: 11px; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+    .info-box strong { color: var(--text-main); font-size: 14px; font-weight: 700; }
+    .status { display: inline-block; padding: 6px 14px; border-radius: 30px; font-size: 12px; font-weight: 700; }
+    .status-dentro { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+    .status-fuera { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+
+    .table-container { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border-color); }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); text-align: left; font-size: 13px; color: var(--text-main); }
+    th { background: var(--afac-bg); color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 11px; }
+
+    .counters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 20px; }
+    .counter-card { background: var(--afac-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 16px; text-align: center; }
+    .counter-card h4 { margin: 0 0 6px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+    .counter-card .val { font-size: 20px; font-weight: 800; color: var(--afac-guinda); }
+
+    .incidencias-individuales-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 10px; }
+    .incidencia-box-item { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .incidencia-box-item span { font-size: 12px; font-weight: 600; color: var(--text-main); }
+    .incidencia-box-item strong { font-size: 14px; font-weight: 800; color: var(--afac-guinda); background: var(--afac-bg); padding: 2px 8px; border-radius: 6px; }
+
+    /* ESTILOS ROLFI */
+    .rolfi-semana-header { background: #BC955C; color: white; text-align: center; font-size: 14px; font-weight: 800; padding: 10px; letter-spacing: 1px; }
+    .rolfi-dia-header { background: #FDF8ED; color: #691C32; border: 1px solid #E2E8F0; text-align: center; font-size: 11px; font-weight: 700; padding: 8px 4px; min-width: 100px; }
+    .excel-cell { border: 1px solid var(--border-color); padding: 8px 6px; text-align: center; font-weight: 700; font-size: 10px; }
+    .tipo-activo { background: #F8FAFC; color: #0F172A; }
+    .tipo-economico { background: #FEF3C7; color: #92400E; }
+    .tipo-vacaciones { background: #DBEAFE; color: #1E40AF; }
+    .tipo-comision { background: #FEE2E2; color: #991B1B; }
+    .tipo-medico { background: #FFEDD5; color: #C2410C; }
+    .tipo-salida-anticipada { background: #E0E7FF; color: #3730A3; }
+    .tipo-permanencia-tarde { background: #FCE7F3; color: #9D174D; }
+    .tipo-descanso { background: #E2E8F0; color: #64748B; font-weight: 500; }
+    .tipo-inhabildia { background: #F1F5F9; color: #94A3B8; text-decoration: line-through; font-weight: 400; }
+    .tipo-festivo { background: #FEE2E2; color: #991B1B; font-weight: 800; }
+
+    .modal { display: none; position: fixed; z-index: 1000; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 20px; }
+    .modal.active { display: flex; }
+    .modal-content { background: var(--card-bg); width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto; border-radius: 24px; padding: 35px; box-shadow: 0 25px 50px rgba(0,0,0,0.3); border: 1px solid var(--border-color); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 2px solid var(--border-color); padding-bottom: 16px; }
+    .modal-header h2 { margin: 0; color: var(--text-main); font-size: 20px; font-weight: 800; }
+    .close { background: var(--afac-bg); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--text-muted); cursor: pointer; border: none; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 13px 16px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 13px; background: var(--afac-bg); color: var(--text-main); outline: none; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .hidden { display: none !important; }
+    .search-box { margin-bottom: 20px; }
+    .search-box input { width: 100%; padding: 14px 18px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 13px; background: var(--afac-bg); color: var(--text-main); }
+    .empty { text-align: center; color: var(--text-muted); padding: 40px; font-size: 14px; }
+    .message { padding: 14px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; font-weight: 700; display: none; }
+    .message.success { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+    .message.error { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+
+    .users-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .user-card { border: 1px solid var(--border-color); border-radius: 18px; padding: 22px; background: var(--card-bg); cursor: pointer; transition: all 0.3s; }
+    .user-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-hover); border-color: var(--afac-dorado); }
+
+    @media (max-width: 900px) {
+      .profile-card-layout { grid-template-columns: 1fr; }
+      header .header-content { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="appPrincipal">
+  <header>
+    <div class="header-content">
+      <div class="brand-section">
+        <div class="logos-container"><span class="logo-badge-text">AFAC</span></div>
+        <div class="header-titles">
+          <h1>SIRCA — Control Institucional</h1>
+          <p>Agencia Federal de Aviación Civil | SICT</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="firebase-status"><span class="led-green"></span> Conectado</div>
+        <div>
+          <label style="font-size:11px; color:#FEE6B4; font-weight:700; display:block;">Cambiar de Vista:</label>
+          <select id="selectorRol" class="select-view" onchange="cambiarRolSistema(this.value)">
+            <option value="admin">👨‍💼 Vista Administrador / ROLFI</option>
+          </select>
+        </div>
+        <button class="btn-theme" onclick="toggleTema()">🌓 Modo</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="nav-tabs-container" id="navTabsAdmin">
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="cambiarVistaAdmin('control')">📊 Control y Operaciones</button>
+      <button class="tab-btn" onclick="cambiarVistaAdmin('rolfi')">🗓️ Módulo ROLFI (Por Semana)</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="mensaje" class="message"></div>
+
+    <!-- PANEL ADMIN -->
+    <div id="panelAdminWrapper">
+      <div id="vistaControl">
+        <div class="stats">
+          <div class="stat-card"><h3>Plantilla Total</h3><div class="number" id="totalUsuarios">0</div></div>
+          <div class="stat-card success"><h3>Laborando Hoy</h3><div class="number" id="usuariosDentro">0</div></div>
+          <div class="stat-card warning"><h3>Solicitudes Pendientes</h3><div class="number" id="totalPendientes">0</div></div>
+          <div class="stat-card danger"><h3>Bajas</h3><div class="number" id="totalBajas">0</div></div>
+        </div>
+
+        <!-- BANDEJA DE APROBACIÓN -->
+        <div class="card">
+          <div class="card-header"><h2>📥 Bandeja de Solicitudes y Permisos de Personal</h2></div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr><th>Trabajador</th><th>Tipo</th><th>Motivo / Periodo</th><th>Acciones de Aprobación</th></tr>
+              </thead>
+              <tbody id="tablaAdminSolicitudes">
+                <tr><td colspan="4" class="empty">No hay solicitudes pendientes de revisión.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>👥 Gestión de Personal</h2>
+            <button class="btn-success" onclick="nuevoUsuarioManual()">+ Registrar Nuevo Trabajador</button>
+          </div>
+        </div>
+
+        <!-- EXPEDIENTE ADMIN -->
+        <div class="card">
+          <div class="card-header"><h2>👤 Expediente del Trabajador y Conteo de Incidencias</h2></div>
+          <div id="sinUsuario" class="empty">Selecciona un trabajador del directorio inferior para consultar su expediente, fotografía oficial y el conteo individualizado de sus incidencias.</div>
+          <div id="usuarioSeleccionado" class="hidden">
+            <div class="profile-card-layout">
+              <div class="avatar-box" id="adminAvatarBox"><div class="avatar-icon">👤</div></div>
+              <div class="user-info">
+                <div class="info-box"><small>Nombre</small><strong id="infoNombre">-</strong></div>
+                <div class="info-box"><small>Puesto</small><strong id="infoEscuela">-</strong></div>
+                <div class="info-box"><small>Área</small><strong id="infoArea">-</strong></div>
+                <div class="info-box"><small>Turno</small><strong id="infoTurno">-</strong></div>
+                <div class="info-box"><small>No. Empleado</small><strong id="infoTIA">-</strong></div>
+                <div class="info-box"><small>Correo</small><strong id="infoCorreo">-</strong></div>
+                <div class="info-box"><small>ID QR</small><strong id="infoID">-</strong></div>
+                <div class="info-box"><small>Estatus</small><span id="infoEstado" class="status status-fuera">● Fuera</span></div>
+              </div>
+            </div>
+
+            <div class="counters-grid">
+              <div class="counter-card">
+                <h4>Vacaciones 1ra Mitad</h4>
+                <div class="val" id="cntVac1">0 / 10 días</div>
+              </div>
+              <div class="counter-card">
+                <h4>Vacaciones 2da Mitad</h4>
+                <div class="val" id="cntVac2">0 / 10 días</div>
+              </div>
+              <div class="counter-card">
+                <h4>Días Económicos</h4>
+                <div class="val" id="cntEcon">0 / 12 días</div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px; background:var(--afac-bg); padding:18px; border-radius:14px; border:1px solid var(--border-color);">
+              <small style="display:block; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;">📊 Conteo Individualizado por Tipo de Incidencia acumulada:</small>
+              <div id="containerIncidenciasIndividuales" class="incidencias-individuales-grid"></div>
+            </div>
+
+            <div class="control-buttons" style="margin-top:24px; justify-content:space-between;">
+              <button class="btn-secondary" onclick="cambiarRolSistema(usuarioSeleccionadoID)">Ver Portal Individual</button>
+              <button class="btn-danger" onclick="darDeBajaTrabajador(usuarioSeleccionadoID)">🗑️ Dar de Baja Definitiva</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>🗂 Plantilla de Personal Activa</h2></div>
+          <div class="search-box"><input type="text" id="buscarUsuario" placeholder="Buscar trabajador..." oninput="mostrarUsuarios()"></div>
+          <div id="usuariosGrid" class="users-grid"></div>
+        </div>
+      </div>
+
+      <!-- VISTA ROLFI POR SEMANA -->
+      <div id="vistaRolfi" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>🗓️ ROLFI — Vista Semanal Interactiva</h2>
+              <p style="margin:4px 0 0; font-size:12px; color:var(--text-muted);" id="labelSemanaActual">Navegando entre semanas (2026 - 2028)</p>
+            </div>
+            <div class="control-buttons">
+              <button class="btn-secondary" onclick="cambiarSemanaRolfi(-1)">← Semana Anterior</button>
+              <button class="btn-primary" onclick="irSemanaActual()">Semana Actual</button>
+              <button class="btn-secondary" onclick="cambiarSemanaRolfi(1)">Semana Siguiente →</button>
+              <button class="btn-danger" onclick="exportarSemanaPDF()">📥 Descargar PDF</button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap; font-size:11px; font-weight:600; background:var(--afac-bg); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
+            <span><span style="display:inline-block; width:12px; height:12px; background:#F8FAFC; border:1px solid var(--border-color);"></span> Activo</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#FEF3C7; border:1px solid #D97706;"></span> Permiso Económico (PE)</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#DBEAFE; border:1px solid #2563EB;"></span> Vacaciones (VAC)</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#FFEDD5; border:1px solid #C2410C;"></span> Médico (MED)</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#E0E7FF; border:1px solid #6366F1;"></span> Salida Anticipada (SA)</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#FCE7F3; border:1px solid #EC4899;"></span> Permanencia Tarde (PT)</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#E2E8F0;"></span> Descanso 2x2</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#FEE2E2;"></span> Festivo Oficial</span>
+            <span><span style="display:inline-block; width:12px; height:12px; background:#F1F5F9;"></span> Fin de Semana</span>
+          </div>
+
+          <div class="table-container" style="overflow-x: auto;">
+            <table id="tablaRolfiExcel">
+              <thead id="rolfiThead"></thead>
+              <tbody id="rolfiBodyRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PORTAL INDIVIDUAL -->
+    <div id="panelTrabajadorIndividual" class="hidden">
+      <div style="margin-bottom: 20px;">
+        <button class="btn-primary" onclick="cambiarRolSistema('admin')">← Volver al Panel de Administrador</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>💳 Mi Credencial Digital e Imagen de Perfil</h2>
+          <span id="miEstadoBadge" class="status status-dentro">● Activo</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 220px 1fr; gap:24px; align-items:center;">
+          <div style="text-align:center;">
+            <div class="avatar-box" id="userAvatarBox"><div class="avatar-icon" style="font-size:50px;">👨‍✈️</div></div>
+            <label class="btn-primary" style="margin-top:14px; display:inline-block; cursor:pointer; font-size:11px; padding:8px 14px;">
+              📷 Subir / Cambiar Foto
+              <input type="file" id="inputSubirFoto" accept="image/*" style="display:none;" onchange="subirFotoUsuario(event)">
+            </label>
+          </div>
+          <div>
+            <h3 id="miNombre" style="margin:0 0 6px; font-size:22px; color:var(--text-main);">Nombre del Trabajador</h3>
+            <p id="miPuesto" style="margin:4px 0; color:var(--text-muted); font-size:13px;"><strong>Puesto:</strong> -</p>
+            <p id="miArea" style="margin:4px 0; color:var(--text-muted); font-size:13px;"><strong>Área:</strong> -</p>
+            <p id="miTurnoPortal" style="margin:4px 0; color:var(--text-muted); font-size:13px;"><strong>Turno / Horario:</strong> -</p>
+            <p id="miNoEmpleado" style="margin:4px 0; color:var(--text-muted); font-size:13px;"><strong>No. Empleado:</strong> -</p>
+            <p id="miCorreo" style="margin:4px 0; color:var(--text-muted); font-size:13px;"><strong>Correo:</strong> -</p>
+            <div style="margin-top:14px; display:inline-block; background:var(--afac-bg); padding:6px 14px; border-radius:8px; border:1px solid var(--border-color);">
+              <small style="color:var(--text-muted); font-size:10px; text-transform:uppercase; font-weight:700;">Folio Único</small><br>
+              <strong id="miIdQR" style="color:var(--afac-guinda); font-size:14px; font-family:monospace;">SIRCA-001</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="counters-grid" style="margin-top:24px;">
+          <div class="counter-card">
+            <h4>Mis Vacaciones 1ra Mitad</h4>
+            <div class="val" id="miCntVac1">0 / 10 días</div>
+          </div>
+          <div class="counter-card">
+            <h4>Mis Vacaciones 2da Mitad</h4>
+            <div class="val" id="miCntVac2">0 / 10 días</div>
+          </div>
+          <div class="counter-card">
+            <h4>Mis Días Económicos</h4>
+            <div class="val" id="miCntEcon">0 / 12 días</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; background:var(--afac-bg); padding:18px; border-radius:14px; border:1px solid var(--border-color);">
+          <small style="display:block; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;">📊 Mis Incidencias Registradas y Aprobadas:</small>
+          <div id="miContainerIncidenciasIndividuales" class="incidencias-individuales-grid"></div>
+        </div>
+        
+        <div style="margin-top:24px; text-align:center; background:var(--afac-bg); padding:20px; border-radius:16px; border:1px dashed var(--afac-dorado);">
+          <p style="margin:0 0 12px; font-size:13px; font-weight:700; color:var(--afac-guinda);">📍 Validación de Asistencia por Geolocalización (GPS AFAC)</p>
+          <button class="btn-success" onclick="validarAsistenciaGPS()">🌐 Registrar Chequeo con Ubicación GPS</button>
+          <p id="gpsEstadoTexto" style="margin:10px 0 0; font-size:12px; color:var(--text-muted);"></p>
+          <div id="miContenedorQR" style="margin-top:15px; display:flex; justify-content:center;"></div>
+        </div>
+      </div>
+
+      <!-- SOLICITAR PERMISO O INCIDENCIA -->
+      <div class="card">
+        <div class="card-header"><h2>📑 Solicitar Nuevo Permiso, Vacaciones o Incidencia</h2></div>
+        <form id="formMiSolicitud" onsubmit="enviarSolicitudTrabajador(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tipo de Incidencia *</label>
+              <select id="miSolTipo" required>
+                <option value="Permiso Económico">Permiso Económico (Económico)</option>
+                <option value="Vacaciones 1ra Mitad">Vacaciones (1ra Mitad del Año)</option>
+                <option value="Vacaciones 2da Mitad">Vacaciones (2da Mitad del Año)</option>
+                <option value="Constancia Médica">Constancia Médica (Médica)</option>
+                <option value="Comisión Oficial">Comisión Oficial</option>
+                <option value="Salida Anticipada">Salida Anticipada (SA)</option>
+                <option value="Permanencia por Llegar Tarde">Permanencia por Llegar Tarde (PT)</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Motivo / Asunto *</label><input id="miSolMotivo" required placeholder="Motivo oficial"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Fecha Inicial *</label><input id="miSolFechaInicio" type="date" required></div>
+            <div class="form-group"><label>Fecha Final *</label><input id="miSolFechaFin" type="date" required></div>
+          </div>
+          <button class="btn-success" type="submit" style="margin-top:15px;">Enviar Solicitud a Administración</button>
+        </form>
+      </div>
+
+      <!-- HISTORIAL DE MIS SOLICITUDES -->
+      <div class="card">
+        <div class="card-header"><h2>Historial de Mis Solicitudes</h2></div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Tipo</th><th>Motivo</th><th>Periodo</th><th>Estatus</th></tr></thead>
+            <tbody id="tablaMisSolicitudes"><tr><td colspan="4" class="empty">No tienes solicitudes registradas.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ALTA -->
+<div class="modal" id="modalRegistro">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Alta de Trabajador</h2>
+      <button class="close" onclick="cerrarModalRegistro()">×</button>
+    </div>
+    <div style="background:var(--afac-bg); text-align:center; padding:12px; border-radius:10px; margin-bottom:15px; border: 1px solid var(--border-color);">
+      <small>Folio QR Asignado:</small><br><strong id="nuevoUsuarioID" style="color:var(--afac-guinda); font-size:20px;">SIRCA-001</strong>
+    </div>
+    <div class="form-group"><label>Nombre Completo *</label><input type="text" id="nuevoNombre" placeholder="Ej. Ing. Roberto Gómez"></div>
+    <div class="form-group"><label>Puesto *</label><input type="text" id="nuevoPuesto" placeholder="Ej. Inspector Verificador"></div>
+    <div class="form-group"><label>Área *</label><input type="text" id="nuevaArea" placeholder="Ej. Seguridad Aérea"></div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label>Turno / Horario Institucional *</label>
+        <select id="nuevoTurno" style="font-weight:700; color:var(--afac-guinda);">
+          <option value="08:00 AM - 05:00 PM">08:00 AM a 05:00 PM (Lunes a Viernes)</option>
+          <option value="08:00 AM - 03:00 PM">08:00 AM a 03:00 PM (Lunes a Viernes - Corto)</option>
+          <option value="08:00 AM - 08:00 PM (2x2)">08:00 AM a 08:00 PM (12 hrs - 2 días SÍ, 2 días NO)</option>
+          <option value="08:00 PM - 08:00 AM (2x2)">08:00 PM a 08:00 AM (Nocturno 12 hrs - 2 días SÍ, 2 días NO)</option>
+          <option value="05:00 AM - 01:00 PM">05:00 AM a 01:00 PM (Operativo)</option>
+        </select>
+      </div>
+      <div class="form-group"><label>No. Empleado *</label><input type="text" id="nuevoNoEmpleado" placeholder="EMP-4001"></div>
+    </div>
+
+    <div class="form-group"><label>Correo *</label><input type="email" id="nuevoCorreo" placeholder="correo@afac.gob.mx"></div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+      <button class="btn-secondary" onclick="cerrarModalRegistro()">Cancelar</button>
+      <button class="btn-success" onclick="registrarNuevoUsuario()">Guardar y Registrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let usuarios = []; 
+let solicitudes = [];
+let totalBajasContador = 0;
+let usuarioSeleccionadoID = null;
+let trabajadorSesionID = "admin";
+
+let semanasGlobalKeys = [];
+let semanasGlobalMap = {};
+let indiceSemanaActual = 0;
+
+const diasFestivosOficiales = [
+  "2026-09-16", "2026-11-16", "2026-12-25", 
+  "2027-01-01", "2027-02-01", "2027-03-15", 
+  "2027-05-01", "2027-09-16", "2027-11-15", "2027-12-25",
+  "2028-01-01", "2028-02-07", "2028-03-20", 
+  "2028-05-01", "2028-09-16", "2028-11-20", "2028-12-25"
+];
+
+const tiposDeIncidenciasSoportadas = [
+  "Constancia Médica",
+  "Comisión Oficial",
+  "Salida Anticipada",
+  "Permanencia por Llegar Tarde"
+];
+
+function mostrarMensaje(texto, tipo = "success") {
+  const mensaje = document.getElementById("mensaje");
+  if (!mensaje) return;
+  mensaje.textContent = texto;
+  mensaje.className = "message " + tipo;
+  mensaje.style.display = "block";
+  setTimeout(() => { mensaje.style.display = "none"; }, 4000);
+}
+
+function toggleTema() {
+  const html = document.documentElement;
+  html.setAttribute("data-theme", html.getAttribute("data-theme") === "light" ? "dark" : "light");
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  inicializarSemanasRolfi();
+  poblarSelectorRoles();
+  actualizarTodoAdmin();
+});
+
+function poblarSelectorRoles() {
+  const select = document.getElementById("selectorRol");
+  select.innerHTML = '<option value="admin">👨‍💼 Vista Administrador / ROLFI</option>';
+  usuarios.forEach(u => {
+    const opt = document.createElement("option");
+    opt.value = u.id;
+    opt.textContent = `👤 Trabajador: ${u.nombre}`;
+    select.appendChild(opt);
+  });
+}
+
+function cambiarRolSistema(rol) {
+  trabajadorSesionID = rol;
+  document.getElementById("selectorRol").value = rol;
+  const panelAdmin = document.getElementById("panelAdminWrapper");
+  const panelTrabajador = document.getElementById("panelTrabajadorIndividual");
+  const navTabs = document.getElementById("navTabsAdmin");
+
+  if (rol === "admin") {
+    panelAdmin.classList.remove("hidden");
+    panelTrabajador.classList.add("hidden");
+    navTabs.classList.remove("hidden");
+    actualizarBandejaAdmin();
+  } else {
+    panelAdmin.classList.add("hidden");
+    panelTrabajador.classList.remove("hidden");
+    navTabs.classList.add("hidden");
+    cargarPortalTrabajador(rol);
+  }
+}
+
+function cambiarVistaAdmin(vista) {
+  const btnControl = document.querySelectorAll('.tab-btn')[0];
+  const btnRolfi = document.querySelectorAll('.tab-btn')[1];
+  const divControl = document.getElementById('vistaControl');
+  const divRolfi = document.getElementById('vistaRolfi');
+
+  if (vista === 'control') {
+    btnControl.classList.add('active');
+    btnRolfi.classList.remove('active');
+    divControl.classList.remove('hidden');
+    divRolfi.classList.add('hidden');
+  } else {
+    btnRolfi.classList.add('active');
+    btnControl.classList.remove('active');
+    divRolfi.classList.remove('hidden');
+    divControl.classList.add('hidden');
+    renderizarCalendarioRolfi();
+  }
+}
+
+function actualizarTodoAdmin() {
+  document.getElementById("totalUsuarios").textContent = usuarios.length;
+  document.getElementById("usuariosDentro").textContent = usuarios.filter(u => u.dentro).length;
+  document.getElementById("totalBajas").textContent = totalBajasContador;
+  document.getElementById("totalPendientes").textContent = solicitudes.filter(s => s.estado === "Pendiente").length;
+  mostrarUsuarios();
+  actualizarBandejaAdmin();
+  if (usuarioSeleccionadoID) seleccionarUsuario(usuarioSeleccionadoID);
+  if (trabajadorSesionID !== "admin") cargarPortalTrabajador(trabajadorSesionID);
+  renderizarCalendarioRolfi();
+}
+
+function mostrarUsuarios() {
+  const contenedor = document.getElementById("usuariosGrid");
+  const buscar = (document.getElementById("buscarUsuario")?.value || "").toLowerCase().trim();
+  const lista = usuarios.filter(u => u.id?.toLowerCase().includes(buscar) || u.nombre?.toLowerCase().includes(buscar));
+
+  if (!lista.length) { 
+    contenedor.innerHTML = `<div class="empty">No hay trabajadores registrados. Utiliza el botón superior para agregar registros.</div>`; 
+    return; 
+  }
+  
+  contenedor.innerHTML = "";
+  lista.forEach(usuario => {
+    const div = document.createElement("div");
+    div.className = "user-card";
+    div.onclick = () => seleccionarUsuario(usuario.id);
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <strong>${usuario.nombre}</strong>
+        <small style="color:var(--afac-guinda); font-weight:700;">${usuario.id}</small>
+      </div>
+      <p style="margin:4px 0; font-size:12px; color:var(--text-muted);">Puesto: ${usuario.escuela}</p>
+      <p style="margin:4px 0; font-size:11px; color:var(--afac-dorado); font-weight:700;">🕒 ${usuario.turno}</p>
+      <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
+        ${usuario.dentro ? `<span class="status status-dentro">● Activo</span>` : `<span class="status status-fuera">● Fuera</span>`}
+        <button class="btn-danger" onclick="event.stopPropagation(); darDeBajaTrabajador('${usuario.id}')" style="padding:4px 8px; font-size:11px;">Dar de baja</button>
+      </div>
+    `;
+    contenedor.appendChild(div);
+  });
+}
+
+function calcularDiasHabilesEntre(inicio, fin) {
+  let d1 = new Date(inicio);
+  let d2 = new Date(fin);
+  if (d1 > d2) return 0;
+  let count = 0;
+  let curr = new Date(d1);
+  while (curr <= d2) {
+    let dayOfWeek = curr.getDay();
+    let fechaStr = curr.toISOString().split('T')[0];
+    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !diasFestivosOficiales.includes(fechaStr)) {
+      count++;
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+  return count > 0 ? count : 1;
+}
+
+function seleccionarUsuario(id) {
+  usuarioSeleccionadoID = id;
+  const u = usuarios.find(x => x.id === id);
+  const sinUsuario = document.getElementById("sinUsuario");
+  const panel = document.getElementById("usuarioSeleccionado");
+  if (!u) { sinUsuario.classList.remove("hidden"); panel.classList.add("hidden"); return; }
+  
+  sinUsuario.classList.add("hidden"); panel.classList.remove("hidden");
+
+  document.getElementById("infoNombre").textContent = u.nombre;
+  document.getElementById("infoEscuela").textContent = u.escuela;
+  document.getElementById("infoArea").textContent = u.area;
+  document.getElementById("infoTurno").textContent = u.turno;
+  document.getElementById("infoTIA").textContent = u.TIA;
+  document.getElementById("infoCorreo").textContent = u.correo;
+  document.getElementById("infoID").textContent = u.id;
+
+  const estado = document.getElementById("infoEstado");
+  estado.textContent = u.dentro ? "● Activo" : "● Fuera";
+  estado.className = u.dentro ? "status status-dentro" : "status status-fuera";
+
+  const avatarBox = document.getElementById("adminAvatarBox");
+  if (u.foto) {
+    avatarBox.innerHTML = `<img src="${u.foto}" alt="Foto de perfil">`;
+  } else {
+    avatarBox.innerHTML = `<div class="avatar-icon">👤</div>`;
+  }
+
+  let diasVac1 = 0, diasVac2 = 0, diasEcon = 0;
+  let conteoIncidenciasTipos = {};
+  tiposDeIncidenciasSoportadas.forEach(t => { conteoIncidenciasTipos[t] = 0; });
+
+  solicitudes.filter(s => s.usuarioId === id && s.estado === "Aprobada").forEach(s => {
+    let cant = calcularDiasHabilesEntre(s.fechaInicio, s.fechaFin);
+    if (s.tipo.includes("Vacaciones 1ra Mitad")) diasVac1 += cant;
+    else if (s.tipo.includes("Vacaciones 2da Mitad")) diasVac2 += cant;
+    else if (s.tipo.includes("Permiso Económico")) diasEcon += cant;
+    else conteoIncidenciasTipos[s.tipo] = (conteoIncidenciasTipos[s.tipo] || 0) + cant;
+  });
+
+  document.getElementById("cntVac1").textContent = `${diasVac1} / 10 días`;
+  document.getElementById("cntVac2").textContent = `${diasVac2} / 10 días`;
+  document.getElementById("cntEcon").textContent = `${diasEcon} / 12 días`;
+
+  const containerIndiv = document.getElementById("containerIncidenciasIndividuales");
+  containerIndiv.innerHTML = Object.keys(conteoIncidenciasTipos).map(tipoKey => `
+    <div class="incidencia-box-item">
+      <span>${tipoKey}</span>
+      <strong>${conteoIncidenciasTipos[tipoKey]} ${conteoIncidenciasTipos[tipoKey] === 1 ? 'día' : 'días'}</strong>
+    </div>
+  `).join("");
+}
+
+function darDeBajaTrabajador(id) {
+  const u = usuarios.find(x => x.id === id);
+  if (!u) return;
+  if (confirm(`¿Confirma dar de baja definitiva a ${u.nombre}?`)) {
+    usuarios = usuarios.filter(x => x.id !== id);
+    solicitudes = solicitudes.filter(s => s.usuarioId !== id);
+    totalBajasContador++;
+    document.getElementById("sinUsuario")?.classList.remove("hidden");
+    document.getElementById("usuarioSeleccionado")?.classList.add("hidden");
+    usuarioSeleccionadoID = null;
+    poblarSelectorRoles();
+    actualizarTodoAdmin();
+    mostrarMensaje(`Trabajador dado de baja correctamente.`);
+  }
+}
+
+function enviarSolicitudTrabajador(e) {
+  e.preventDefault();
+  const u = usuarios.find(x => x.id === trabajadorSesionID);
+  if (!u) return;
+
+  const tipoSel = document.getElementById("miSolTipo").value;
+  const fInicio = document.getElementById("miSolFechaInicio").value;
+  const fFin = document.getElementById("miSolFechaFin").value;
+  const diasSolicitados = calcularDiasHabilesEntre(fInicio, fFin);
+
+  let diasActualesVac1 = 0, diasActualesVac2 = 0, diasActualesEcon = 0;
+  solicitudes.filter(s => s.usuarioId === u.id && s.estado === "Aprobada").forEach(s => {
+    let cant = calcularDiasHabilesEntre(s.fechaInicio, s.fechaFin);
+    if (s.tipo.includes("Vacaciones 1ra Mitad")) diasActualesVac1 += cant;
+    if (s.tipo.includes("Vacaciones 2da Mitad")) diasActualesVac2 += cant;
+    if (s.tipo.includes("Permiso Económico")) diasActualesEcon += cant;
+  });
+
+  if (tipoSel.includes("Vacaciones 1ra Mitad") && (diasActualesVac1 + diasSolicitados > 10)) {
+    return mostrarMensaje(`Límite superado: Te quedan ${10 - diasActualesVac1} días disponibles en la 1ra mitad (solicitas ${diasSolicitados}).`, "error");
+  }
+  if (tipoSel.includes("Vacaciones 2da Mitad") && (diasActualesVac2 + diasSolicitados > 10)) {
+    return mostrarMensaje(`Límite superado: Te quedan ${10 - diasActualesVac2} días disponibles en la 2da mitad (solicitas ${diasSolicitados}).`, "error");
+  }
+  if (tipoSel.includes("Permiso Económico") && (diasActualesEcon + diasSolicitados > 12)) {
+    return mostrarMensaje(`Límite superado: Te quedan ${12 - diasActualesEcon} días económicos disponibles (solicitas ${diasSolicitados}).`, "error");
+  }
+
+  const nuevaSol = {
+    id: "SOL-" + Math.floor(Math.random() * 90000 + 10000),
+    usuarioId: u.id,
+    nombreUsuario: u.nombre,
+    tipo: tipoSel,
+    motivo: document.getElementById("miSolMotivo").value,
+    fechaInicio: fInicio,
+    fechaFin: fFin,
+    estado: "Pendiente"
+  };
+
+  solicitudes.push(nuevaSol);
+  document.getElementById("formMiSolicitud").reset();
+  mostrarMensaje("Solicitud enviada correctamente a administración.");
+  cargarPortalTrabajador(u.id);
+  actualizarTodoAdmin();
+}
+
+function cargarPortalTrabajador(id) {
+  const u = usuarios.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById("miNombre").textContent = u.nombre;
+  document.getElementById("miPuesto").innerHTML = `<strong>Puesto:</strong> ${u.escuela}`;
+  document.getElementById("miArea").innerHTML = `<strong>Área:</strong> ${u.area}`;
+  document.getElementById("miTurnoPortal").innerHTML = `<strong>Turno / Horario:</strong> ${u.turno}`;
+  document.getElementById("miNoEmpleado").innerHTML = `<strong>No. Empleado:</strong> ${u.TIA}`;
+  document.getElementById("miCorreo").innerHTML = `<strong>Correo:</strong> ${u.correo}`;
+  document.getElementById("miIdQR").textContent = u.id;
+
+  const avatarBox = document.getElementById("userAvatarBox");
+  if (u.foto) {
+    avatarBox.innerHTML = `<img src="${u.foto}" alt="Foto de perfil">`;
+  } else {
+    avatarBox.innerHTML = `<div class="avatar-icon" style="font-size:50px;">👨‍✈️</div>`;
+  }
+
+  let diasVac1 = 0, diasVac2 = 0, diasEcon = 0;
+  let conteoIncidenciasTipos = {};
+  tiposDeIncidenciasSoportadas.forEach(t => { conteoIncidenciasTipos[t] = 0; });
+
+  solicitudes.filter(s => s.usuarioId === id && s.estado === "Aprobada").forEach(s => {
+    let cant = calcularDiasHabilesEntre(s.fechaInicio, s.fechaFin);
+    if (s.tipo.includes("Vacaciones 1ra Mitad")) diasVac1 += cant;
+    else if (s.tipo.includes("Vacaciones 2da Mitad")) diasVac2 += cant;
+    else if (s.tipo.includes("Permiso Económico")) diasEcon += cant;
+    else conteoIncidenciasTipos[s.tipo] = (conteoIncidenciasTipos[s.tipo] || 0) + cant;
+  });
+
+  document.getElementById("miCntVac1").textContent = `${diasVac1} / 10 días`;
+  document.getElementById("miCntVac2").textContent = `${diasVac2} / 10 días`;
+  document.getElementById("miCntEcon").textContent = `${diasEcon} / 12 días`;
+
+  const miContainerIndiv = document.getElementById("miContainerIncidenciasIndividuales");
+  miContainerIndiv.innerHTML = Object.keys(conteoIncidenciasTipos).map(tipoKey => `
+    <div class="incidencia-box-item">
+      <span>${tipoKey}</span>
+      <strong>${conteoIncidenciasTipos[tipoKey]} ${conteoIncidenciasTipos[tipoKey] === 1 ? 'día' : 'días'}</strong>
+    </div>
+  `).join("");
+
+  const contenedorQR = document.getElementById("miContenedorQR");
+  contenedorQR.innerHTML = "";
+  new QRCode(contenedorQR, { text: u.id, width: 150, height: 150, colorDark: "#691C32", colorLight: "#FFFFFF" });
+
+  const misSol = solicitudes.filter(s => s.usuarioId === u.id);
+  const tbody = document.getElementById("tablaMisSolicitudes");
+  if (!misSol.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">No tienes solicitudes registradas.</td></tr>';
+  } else {
+    tbody.innerHTML = misSol.map(s => `
+      <tr>
+        <td>${s.tipo}</td>
+        <td>${s.motivo}</td>
+        <td>${s.fechaInicio} al ${s.fechaFin}</td>
+        <td><strong style="color:${s.estado === 'Aprobada' ? '#16A34A' : s.estado === 'Rechazada' ? '#DC2626' : '#D97706'}">${s.estado}</strong></td>
+      </tr>
+    `).join("");
+  }
+}
+
+function subirFotoUsuario(event) {
+  const archivo = event.target.files[0];
+  if (!archivo) return;
+  const lector = new FileReader();
+  lector.onload = function(e) {
+    const base64Image = e.target.result;
+    const u = usuarios.find(x => x.id === trabajadorSesionID);
+    if (u) {
+      u.foto = base64Image;
+      cargarPortalTrabajador(u.id);
+      mostrarMensaje("Fotografía de perfil actualizada con éxito.");
+    }
+  };
+  lector.readAsDataURL(archivo);
+}
+
+function validarAsistenciaGPS() {
+  const estadoGPS = document.getElementById("gpsEstadoTexto");
+  if (!navigator.geolocation) {
+    estadoGPS.textContent = "❌ Tu navegador no soporta geolocalización.";
+    return;
+  }
+  estadoGPS.textContent = "📡 Obteniendo ubicación GPS oficial de las instalaciones...";
+  
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const afacLat = 19.7431; 
+      const afacLon = -99.0212;
+      const distancia = Math.hypot(lat - afacLat, lon - afacLon);
+
+      if (distancia < 0.5) {
+        const u = usuarios.find(x => x.id === trabajadorSesionID);
+        if (u) {
+          u.dentro = !u.dentro;
+          actualizarTodoAdmin();
+          cargarPortalTrabajador(u.id);
+          estadoGPS.innerHTML = `<span style="color:#16A34A; font-weight:700;">✅ ¡Ubicación verificada en AFAC! Chequeo registrado con éxito.</span>`;
+          mostrarMensaje(`Asistencia registrada correctamente por GPS.`);
+        }
+      } else {
+        estadoGPS.innerHTML = `<span style="color:#DC2626; font-weight:700;">⚠️ Estás fuera del perímetro autorizado de la AFAC. Acércate a las instalaciones.</span>`;
+      }
+    },
+    (error) => {
+      estadoGPS.textContent = "❌ Error al obtener GPS: Activa los permisos de ubicación.";
+    },
+    { enableHighAccuracy: true }
+  );
+}
+
+function inicializarSemanasRolfi() {
+  semanasGlobalMap = {};
+  semanasGlobalKeys = [];
+  
+  const fechaInicio = new Date(2026, 10, 1);
+  const fechaFin = new Date(2028, 11, 31);
+
+  let curr = new Date(fechaInicio);
+  while (curr <= fechaFin) {
+    const anio = curr.getFullYear();
+    const numSemana = obtenerNumeroSemana(curr);
+    const claveSemana = `${anio}-S${numSemana}`;
+    
+    if (!semanasGlobalMap[claveSemana]) {
+      semanasGlobalMap[claveSemana] = [];
+      semanasGlobalKeys.push(claveSemana);
+    }
+    semanasGlobalMap[claveSemana].push({ 
+      diaNum: curr.getDate(), 
+      mesNum: curr.getMonth() + 1,
+      anioNum: anio,
+      fechaObj: new Date(curr) 
+    });
+
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  const hoyStr = new Date().toISOString().split('T')[0];
+  let encontrado = false;
+  for (let i = 0; i < semanasGlobalKeys.length; i++) {
+    const k = semanasGlobalKeys[i];
+    const dias = semanasGlobalMap[k];
+    const match = dias.some(d => {
+      const a = d.fechaObj.getFullYear();
+      const m = String(d.fechaObj.getMonth() + 1).padStart(2, '0');
+      const day = String(d.diaNum).padStart(2, '0');
+      return `${a}-${m}-${day}` === hoyStr;
+    });
+    if (match) {
+      indiceSemanaActual = i;
+      encontrado = true;
+      break;
+    }
+  }
+  if (!encontrado) indiceSemanaActual = 0;
+}
+
+function cambiarSemanaRolfi(direccion) {
+  indiceSemanaActual += direccion;
+  if (indiceSemanaActual < 0) indiceSemanaActual = 0;
+  if (indiceSemanaActual >= semanasGlobalKeys.length) indiceSemanaActual = semanasGlobalKeys.length - 1;
+  renderizarCalendarioRolfi();
+}
+
+function irSemanaActual() {
+  const hoyStr = new Date().toISOString().split('T')[0];
+  for (let i = 0; i < semanasGlobalKeys.length; i++) {
+    const k = semanasGlobalKeys[i];
+    const dias = semanasGlobalMap[k];
+    const match = dias.some(d => {
+      const a = d.fechaObj.getFullYear();
+      const m = String(d.fechaObj.getMonth() + 1).padStart(2, '0');
+      const day = String(d.diaNum).padStart(2, '0');
+      return `${a}-${m}-${day}` === hoyStr;
+    });
+    if (match) {
+      indiceSemanaActual = i;
+      break;
+    }
+  }
+  renderizarCalendarioRolfi();
+}
+
+// PDF MEJORADO CON DISEÑO EJECUTIVO Y FIRMA DEL DIRECTOR GENERAL
+function exportarSemanaPDF() {
+  const claveSemana = semanasGlobalKeys[indiceSemanaActual];
+  const datosSemana = semanasGlobalMap[claveSemana];
+  const nombresDias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+
+  mostrarMensaje(`Generando reporte PDF oficial optimizado para la ${claveSemana}...`);
+
+  const contenedorPDF = document.createElement("div");
+  contenedorPDF.style.padding = "20px";
+  contenedorPDF.style.background = "#FFFFFF";
+  contenedorPDF.style.color = "#0F172A";
+  contenedorPDF.style.fontFamily = "Montserrat, sans-serif";
+  contenedorPDF.style.fontSize = "11px";
+
+  let thDíasHTML = `<th style="border: 1px solid #CBD5E1; padding: 6px; background: #691C32; color: white; text-align: left; min-width: 160px; font-size: 10px;">Trabajador / Turno</th>`;
+  datosSemana.forEach(item => {
+    const nombreDia = nombresDias[item.fechaObj.getDay()];
+    const mesNombre = obtenerNombreMes(String(item.mesNum).padStart(2, '0'));
+    thDíasHTML += `<th style="border: 1px solid #CBD5E1; padding: 6px 4px; background: #FDF8ED; color: #691C32; text-align: center; font-size: 9px; min-width: 75px;">${nombreDia}<br>${item.diaNum} ${mesNombre}</th>`;
+  });
+
+  let tbodyHTML = "";
+  if (!usuarios.length) {
+    tbodyHTML = `<tr><td colspan="${datosSemana.length + 1}" style="text-align:center; padding:15px;">No hay personal registrado.</td></tr>`;
+  } else {
+    usuarios.forEach((user, index) => {
+      tbodyHTML += `<tr>`;
+      tbodyHTML += `<td style="border: 1px solid #CBD5E1; padding: 6px; font-weight: 700; font-size: 10px; background: #F8FAFC;">${user.nombre}<br><span style="color:#691C32; font-size:8px; font-weight:600;">${user.turno}</span></td>`;
+      
+      datosSemana.forEach(item => {
+        const anioStr = item.anioNum;
+        const mesStr = String(item.mesNum).padStart(2, '0');
+        const diaStr = String(item.diaNum).padStart(2, '0');
+        const fechaStr = `${anioStr}-${mesStr}-${diaStr}`;
+        
+        const diaSemana = item.fechaObj.getDay(); 
+        const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
+        const esFestivo = diasFestivosOficiales.includes(fechaStr);
+        const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
+
+        let texto = "activo";
+        let colorFondo = "#FFFFFF";
+        let colorTexto = "#0F172A";
+
+        if (solAprobada) {
+          if (solAprobada.tipo.includes("Económico")) { texto = "PE"; colorFondo = "#FEF3C7"; colorTexto = "#92400E"; }
+          else if (solAprobada.tipo.includes("Vacaciones")) { texto = "VAC"; colorFondo = "#DBEAFE"; colorTexto = "#1E40AF"; }
+          else if (solAprobada.tipo.includes("Médica")) { texto = "MED"; colorFondo = "#FFEDD5"; colorTexto = "#C2410C"; }
+          else if (solAprobada.tipo.includes("Salida Anticipada")) { texto = "SA"; colorFondo = "#E0E7FF"; colorTexto = "#3730A3"; }
+          else if (solAprobada.tipo.includes("Permanencia")) { texto = "PT"; colorFondo = "#FCE7F3"; colorTexto = "#9D174D"; }
+          else { texto = "INC"; colorFondo = "#FEE2E2"; colorTexto = "#991B1B"; }
+        } else if (esFestivo) {
+          texto = "FESTIVO";
+          colorFondo = "#FEE2E2"; colorTexto = "#991B1B";
+        } else if (user.turno.includes("08:00 AM - 05:00 PM") || user.turno.includes("08:00 AM - 03:00 PM")) {
+          if (esFinDeSemana) {
+            texto = "X";
+            colorFondo = "#F1F5F9"; colorTexto = "#94A3B8";
+          }
+        } else if (user.turno.includes("2x2")) {
+          const ciclo = (item.diaNum + index) % 4;
+          if (ciclo === 2 || ciclo === 3) {
+            texto = "DES";
+            colorFondo = "#E2E8F0"; colorTexto = "#64748B";
+          }
+        }
+
+        tbodyHTML += `<td style="border: 1px solid #CBD5E1; padding: 6px 4px; text-align: center; font-weight: 700; font-size: 9px; background:${colorFondo}; color:${colorTexto};">${texto}</td>`;
+      });
+      tbodyHTML += `</tr>`;
+    });
+  }
+
+  contenedorPDF.innerHTML = `
+    <div style="border-bottom: 3px solid #691C32; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h2 style="margin: 0; color: #691C32; font-size: 15px; text-transform: uppercase; font-weight: 800;">Agencia Federal de Aviación Civil</h2>
+        <p style="margin: 3px 0 0; font-size: 10px; color: #64748B; font-weight: 700;">Secretaría de Infraestructura, Comunicaciones y Transportes | Sistema SIRCA</p>
+      </div>
+      <div style="text-align: right;">
+        <span style="background: #691C32; color: white; padding: 5px 12px; border-radius: 6px; font-size: 10px; font-weight: 800;">ROLFI — ${claveSemana}</span>
+      </div>
+    </div>
+
+    <h3 style="text-align: center; color: #0F172A; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; font-weight: 700;">Reporte Oficial de Asistencia e Incidencias Semanales</h3>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+      <thead><tr>${thDíasHTML}</tr></thead>
+      <tbody>${tbodyHTML}</tbody>
+    </table>
+
+    <!-- BLOQUE DE FIRMA INSTITUCIONAL DEL DIRECTOR GENERAL -->
+    <div style="margin-top: 40px; display: flex; justify-content: center; page-break-inside: avoid;">
+      <div style="text-align: width: 300px; text-align: center;">
+        <div style="border-bottom: 1px solid #0F172A; width: 280px; margin: 0 auto 8px auto; height: 35px;"></div>
+        <strong style="font-size: 11px; color: #0F172A; text-transform: uppercase; display: block;">Director General de la AFAC</strong>
+        <span style="font-size: 9px; color: #64748B; font-weight: 600;">Agencia Federal de Aviación Civil</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 8px; color: #64748B; border-top: 1px solid #E2E8F0; pt: 8px;">
+      <span>Documento oficial validado por el Sistema Integral de Registro y Control de Asistencia (SIRCA)</span>
+      <span>Fecha de emisión: ${new Date().toLocaleDateString()}</span>
+    </div>
+  `;
+
+  const opciones = {
+    margin:       10,
+    filename:     `ROLFI_${claveSemana}_AFAC.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  };
+
+  html2pdf().from(contenedorPDF).set(opciones).save().then(() => {
+    mostrarMensaje(`PDF oficial de la ${claveSemana} exportado con éxito.`);
+  });
+}
+
+function actualizarBandejaAdmin() {
+  const tbody = document.getElementById("tablaAdminSolicitudes");
+  const pend = solicitudes.filter(s => s.estado === "Pendiente");
+
+  if (!pend.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">No hay solicitudes pendientes de revisión.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = pend.map(s => `
+    <tr>
+      <td><strong>${s.nombreUsuario}</strong><br><small>${s.usuarioId}</small></td>
+      <td>${s.tipo}</td>
+      <td>${s.motivo}<br><small>${s.fechaInicio} al ${s.fechaFin}</small></td>
+      <td>
+        <button class="btn-success" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s.id}', 'Aprobada')">Aprobar</button>
+        <button class="btn-danger" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s.id}', 'Rechazada')">Rechazar</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function resolverSolicitud(id, nuevoEstado) {
+  const sol = solicitudes.find(s => s.id === id);
+  if (sol) {
+    sol.estado = nuevoEstado;
+    mostrarMensaje(`Solicitud ${nuevoEstado.toLowerCase()} correctamente.`);
+    actualizarTodoAdmin();
+  }
+}
+
+function obtenerNumeroSemana(fecha) {
+  const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function renderizarCalendarioRolfi() {
+  const thead = document.getElementById("rolfiThead");
+  const bodyRows = document.getElementById("rolfiBodyRows");
+  const labelSemanaActual = document.getElementById("labelSemanaActual");
+  if (!thead || !bodyRows) return;
+
+  if (!semanasGlobalKeys.length) return;
+
+  const claveSemana = semanasGlobalKeys[indiceSemanaActual];
+  const diasArray = semanasGlobalMap[claveSemana];
+
+  if (labelSemanaActual) {
+    labelSemanaActual.textContent = `Visualizando actualmente: ${claveSemana} (Semana ${indiceSemanaActual + 1} de ${semanasGlobalKeys.length})`;
+  }
+
+  let trSemana = `<th style="position: sticky; left: 0; background: var(--afac-bg); z-index: 12; min-width: 200px; border-right: 2px solid var(--border-color);">Trabajador / Turno</th>`;
+  let trDia = `<th style="position: sticky; left: 0; background: #FDF8ED; z-index: 12; min-width: 200px; border-right: 2px solid var(--border-color);">Día del Mes</th>`;
+
+  const nombresDias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+
+  trSemana += `<th colspan="${diasArray.length}" class="rolfi-semana-header">${claveSemana}</th>`;
+  diasArray.forEach(item => {
+    const nombreDiaSemana = nombresDias[item.fechaObj.getDay()];
+    const mesNombre = obtenerNombreMes(String(item.mesNum).padStart(2, '0'));
+    trDia += `<th class="rolfi-dia-header">${nombreDiaSemana}, ${item.diaNum} ${mesNombre} ${item.anioNum}</th>`;
+  });
+
+  thead.innerHTML = `<tr>${trSemana}</tr><tr>${trDia}</tr>`;
+
+  if (!usuarios.length) { 
+    bodyRows.innerHTML = `<tr><td colspan="100" class="empty">No hay personal registrado en el sistema.</td></tr>`; 
+    return; 
+  }
+
+  let bodyHTML = "";
+  usuarios.forEach((user, index) => {
+    bodyHTML += `<tr>`;
+    bodyHTML += `<td style="text-align: left; padding: 10px; font-weight: 700; background: var(--card-bg); position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border-color); cursor:pointer;" onclick="cambiarRolSistema('${user.id}')">${user.nombre}<br><small style="color:var(--afac-guinda);">${user.turno}</small></td>`;
+    
+    diasArray.forEach(item => {
+      const anioStr = item.anioNum;
+      const mesStr = String(item.mesNum).padStart(2, '0');
+      const diaStr = String(item.diaNum).padStart(2, '0');
+      const fechaStr = `${anioStr}-${mesStr}-${diaStr}`;
+      
+      const diaSemana = item.fechaObj.getDay(); 
+      const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
+      const esFestivo = diasFestivosOficiales.includes(fechaStr);
+
+      const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
+
+      let texto = "activo";
+      let clase = "tipo-activo";
+
+      if (solAprobada) {
+        if (solAprobada.tipo.includes("Económico")) { texto = "PE"; clase = "tipo-economico"; }
+        else if (solAprobada.tipo.includes("Vacaciones")) { texto = "VAC"; clase = "tipo-vacaciones"; }
+        else if (solAprobada.tipo.includes("Médica")) { texto = "MED"; clase = "tipo-medico"; }
+        else if (solAprobada.tipo.includes("Salida Anticipada")) { texto = "SA"; clase = "tipo-salida-anticipada"; }
+        else if (solAprobada.tipo.includes("Permanencia")) { texto = "PT"; clase = "tipo-permanencia-tarde"; }
+        else { texto = "INC"; clase = "tipo-comision"; }
+      } else if (esFestivo) {
+        texto = "FESTIVO";
+        clase = "tipo-festivo";
+      } else if (user.turno.includes("08:00 AM - 05:00 PM") || user.turno.includes("08:00 AM - 03:00 PM")) {
+        if (esFinDeSemana) {
+          texto = "X";
+          clase = "tipo-inhabildia";
+        }
+      } else if (user.turno.includes("2x2")) {
+        const ciclo = (item.diaNum + index) % 4;
+        if (ciclo === 2 || ciclo === 3) {
+          texto = "DES";
+          clase = "tipo-descanso";
+        }
+      }
+
+      bodyHTML += `<td class="excel-cell ${clase}" title="${solAprobada ? solAprobada.tipo : (esFestivo ? 'Día Festivo Oficial' : (esFinDeSemana ? 'Fin de semana inhábil' : 'Jornada Regular'))}">${texto}</td>`;
+    });
+
+    bodyHTML += `</tr>`;
+  });
+  bodyRows.innerHTML = bodyHTML;
+}
+
+function obtenerNombreMes(m) {
+  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  return meses[parseInt(m) - 1];
+}
+
+function nuevoUsuarioManual() {
+  const idNum = usuarios.length + 1;
+  const id = "SIRCA-" + String(idNum).padStart(3, "0");
+  document.getElementById("nuevoUsuarioID").textContent = id;
+  document.getElementById("modalRegistro")?.classList.add("active");
+}
+
+function cerrarModalRegistro() { document.getElementById("modalRegistro")?.classList.remove("active"); }
+
+function registrarNuevoUsuario() {
+  const nombre = document.getElementById("nuevoNombre")?.value.trim();
+  const puesto = document.getElementById("nuevoPuesto")?.value.trim();
+  const area = document.getElementById("nuevaArea")?.value.trim();
+  const turno = document.getElementById("nuevoTurno")?.value;
+  const noEmpleado = document.getElementById("nuevoNoEmpleado")?.value.trim();
+  const correo = document.getElementById("nuevoCorreo")?.value.trim();
+
+  if (!nombre || !puesto || !area || !noEmpleado || !correo) return mostrarMensaje("Completa todos los campos obligatorios.", "error");
+
+  const nuevo = { id: document.getElementById("nuevoUsuarioID").textContent, nombre, escuela: puesto, area, turno, TIA: noEmpleado, correo, dentro: true, foto: null };
+  usuarios.push(nuevo);
+  cerrarModalRegistro();
+  document.getElementById("modalRegistro").querySelectorAll("input").forEach(i => i.value = "");
+  mostrarMensaje("Trabajador registrado con éxito.");
+  poblarSelectorRoles();
+  actualizarTodoAdmin();
+}
+</script>
+
+</body>
+</html>
