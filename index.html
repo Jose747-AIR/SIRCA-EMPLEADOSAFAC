@@ -93,13 +93,12 @@
     }
     .led-green { width: 8px; height: 8px; background-color: #22C55E; border-radius: 50%; box-shadow: 0 0 8px #22C55E; }
 
-    .btn-theme, .select-view {
+    .btn-theme {
       background: rgba(255,255,255,0.15);
       border: 1px solid rgba(255,255,255,0.3);
       color: white; padding: 8px 16px; border-radius: 20px;
       font-size: 12px; cursor: pointer; font-weight: 600; outline: none;
     }
-    .select-view option { background: var(--afac-guinda-dark); color: white; }
 
     .nav-tabs-container {
       background: var(--card-bg);
@@ -119,6 +118,36 @@
 
     .container { max-width: 1440px; margin: 30px auto; padding: 0 25px; }
 
+    /* PANTALLA DE LOGIN */
+    .login-wrapper {
+      min-height: 75vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 40px;
+      width: 100%;
+      max-width: 480px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-hover);
+    }
+    .login-card h2 {
+      margin: 0 0 8px;
+      color: var(--afac-guinda);
+      font-size: 24px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .login-card p {
+      margin: 0 0 24px;
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 28px; }
     .stat-card {
       background: var(--card-bg); border-radius: 18px; padding: 24px; border: 1px solid var(--border-color);
@@ -129,9 +158,6 @@
     .stat-card.danger { border-left-color: #DC2626; }
     .stat-card h3 { margin: 0 0 8px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; font-weight: 700; }
     .stat-card .number { font-size: 34px; font-weight: 800; color: var(--text-main); }
-    .stat-card.success .number { color: #16A34A; }
-    .stat-card.warning .number { color: #D97706; }
-    .stat-card.danger .number { color: #DC2626; }
 
     .card { background: var(--card-bg); border-radius: 20px; padding: 30px; margin-bottom: 28px; border: 1px solid var(--border-color); box-shadow: var(--shadow-soft); }
     .card-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 24px; border-bottom: 2px solid var(--border-color); padding-bottom: 16px; }
@@ -142,7 +168,7 @@
       transition: all 0.25s; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: inline-flex; align-items: center; gap: 8px;
     }
     button:hover { opacity: 0.95; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.12); }
-    .btn-primary { background: var(--afac-guinda); color: white; }
+    .btn-primary { background: var(--afac-guinda); color: white; width: 100%; justify-content: center; }
     .btn-success { background: #16A34A; color: white; }
     .btn-danger { background: #DC2626; color: white; }
     .btn-secondary { background: var(--afac-bg); color: var(--text-main); border: 1px solid var(--border-color); box-shadow: none; }
@@ -238,30 +264,51 @@
         </div>
       </div>
       <div class="header-right">
-        <div class="firebase-status"><span class="led-green"></span> Conectado</div>
-        <div>
-          <label style="font-size:11px; color:#FEE6B4; font-weight:700; display:block;">Cambiar de Vista:</label>
-          <select id="selectorRol" class="select-view" onchange="cambiarRolSistema(this.value)">
-            <option value="admin">👨‍💼 Vista Administrador / ROLFI</option>
-          </select>
-        </div>
+        <div class="firebase-status"><span class="led-green"></span> Almacenamiento Local Activo</div>
         <button class="btn-theme" onclick="toggleTema()">🌓 Modo</button>
+        <button id="btnCerrarSesion" class="btn-danger hidden" onclick="cerrarSesion()" style="padding:6px 14px; font-size:11px;">Cerrar Sesión</button>
       </div>
     </div>
   </header>
 
-  <div class="nav-tabs-container" id="navTabsAdmin">
+  <!-- PANTALLA DE LOGIN -->
+  <div id="pantallaLogin" class="container">
+    <div id="mensajeLogin" class="message"></div>
+    <div class="login-wrapper">
+      <div class="login-card">
+        <h2>✈️ Acceso SIRCA</h2>
+        <p>Introduce tus credenciales institucionales para ingresar al sistema.</p>
+        <form onsubmit="ejecutarLogin(event)">
+          <div class="form-group">
+            <label>Correo Electrónico *</label>
+            <input type="email" id="loginCorreo" required placeholder="correo@afac.gob.mx">
+          </div>
+          <div class="form-group">
+            <label>Contraseña *</label>
+            <input type="password" id="loginPassword" required placeholder="••••••••">
+          </div>
+          <button class="btn-primary" type="submit" style="margin-top:10px;">Ingresar al Sistema</button>
+        </form>
+        <div style="margin-top:20px; font-size:11px; color:var(--text-muted); text-align:center; border-top:1px solid var(--border-color); pt:15px;">
+          <p style="margin:10px 0 0;"><strong>Admin por defecto:</strong> admin@afac.gob.mx / admin123</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVEGACIÓN ADMINISTRADOR -->
+  <div class="nav-tabs-container hidden" id="navTabsAdmin">
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="cambiarVistaAdmin('control')">📊 Control y Operaciones</button>
       <button class="tab-btn" onclick="cambiarVistaAdmin('rolfi')">🗓️ Módulo ROLFI (Por Semana)</button>
     </div>
   </div>
 
-  <div class="container">
+  <div class="container hidden" id="contenedorPrincipalApp">
     <div id="mensaje" class="message"></div>
 
     <!-- PANEL ADMIN -->
-    <div id="panelAdminWrapper">
+    <div id="panelAdminWrapper" class="hidden">
       <div id="vistaControl">
         <div class="stats">
           <div class="stat-card"><h3>Plantilla Total</h3><div class="number" id="totalUsuarios">0</div></div>
@@ -270,16 +317,15 @@
           <div class="stat-card danger"><h3>Bajas</h3><div class="number" id="totalBajas">0</div></div>
         </div>
 
-        <!-- BANDEJA DE APROBACIÓN -->
         <div class="card">
           <div class="card-header"><h2>📥 Bandeja de Solicitudes y Permisos de Personal</h2></div>
           <div class="table-container">
             <table>
               <thead>
-                <tr><th>Trabajador</th><th>Tipo</th><th>Motivo / Periodo</th><th>Acciones de Aprobación</th></tr>
+                <tr><th>Trabajador</th><th>Tipo</th><th>Motivo / Periodo</th><th>Documento PDF</th><th>Acciones de Aprobación</th></tr>
               </thead>
               <tbody id="tablaAdminSolicitudes">
-                <tr><td colspan="4" class="empty">No hay solicitudes pendientes de revisión.</td></tr>
+                <tr><td colspan="5" class="empty">No hay solicitudes pendientes de revisión.</td></tr>
               </tbody>
             </table>
           </div>
@@ -292,7 +338,6 @@
           </div>
         </div>
 
-        <!-- EXPEDIENTE ADMIN -->
         <div class="card">
           <div class="card-header"><h2>👤 Expediente del Trabajador y Conteo de Incidencias</h2></div>
           <div id="sinUsuario" class="empty">Selecciona un trabajador del directorio inferior para consultar su expediente, fotografía oficial y el conteo individualizado de sus incidencias.</div>
@@ -331,8 +376,7 @@
               <div id="containerIncidenciasIndividuales" class="incidencias-individuales-grid"></div>
             </div>
 
-            <div class="control-buttons" style="margin-top:24px; justify-content:space-between;">
-              <button class="btn-secondary" onclick="cambiarRolSistema(usuarioSeleccionadoID)">Ver Portal Individual</button>
+            <div class="control-buttons" style="margin-top:24px; justify-content:flex-end;">
               <button class="btn-danger" onclick="darDeBajaTrabajador(usuarioSeleccionadoID)">🗑️ Dar de Baja Definitiva</button>
             </div>
           </div>
@@ -345,7 +389,7 @@
         </div>
       </div>
 
-      <!-- VISTA ROLFI POR SEMANA -->
+      <!-- VISTA ROLFI -->
       <div id="vistaRolfi" class="hidden">
         <div class="card">
           <div class="card-header">
@@ -383,12 +427,8 @@
       </div>
     </div>
 
-    <!-- PORTAL INDIVIDUAL -->
+    <!-- PANEL TRABAJADOR INDIVIDUAL -->
     <div id="panelTrabajadorIndividual" class="hidden">
-      <div style="margin-bottom: 20px;">
-        <button class="btn-primary" onclick="cambiarRolSistema('admin')">← Volver al Panel de Administrador</button>
-      </div>
-
       <div class="card">
         <div class="card-header">
           <h2>💳 Mi Credencial Digital e Imagen de Perfil</h2>
@@ -397,7 +437,7 @@
         <div style="display:grid; grid-template-columns: 220px 1fr; gap:24px; align-items:center;">
           <div style="text-align:center;">
             <div class="avatar-box" id="userAvatarBox"><div class="avatar-icon" style="font-size:50px;">👨‍✈️</div></div>
-            <label class="btn-primary" style="margin-top:14px; display:inline-block; cursor:pointer; font-size:11px; padding:8px 14px;">
+            <label class="btn-primary" style="margin-top:14px; display:inline-block; cursor:pointer; font-size:11px; padding:8px 14px; width:auto;">
               📷 Subir / Cambiar Foto
               <input type="file" id="inputSubirFoto" accept="image/*" style="display:none;" onchange="subirFotoUsuario(event)">
             </label>
@@ -444,7 +484,6 @@
         </div>
       </div>
 
-      <!-- SOLICITAR PERMISO O INCIDENCIA -->
       <div class="card">
         <div class="card-header"><h2>📑 Solicitar Nuevo Permiso, Vacaciones o Incidencia</h2></div>
         <form id="formMiSolicitud" onsubmit="enviarSolicitudTrabajador(event)">
@@ -467,17 +506,20 @@
             <div class="form-group"><label>Fecha Inicial *</label><input id="miSolFechaInicio" type="date" required></div>
             <div class="form-group"><label>Fecha Final *</label><input id="miSolFechaFin" type="date" required></div>
           </div>
+          <div class="form-group">
+            <label>📄 Subir Formato de Permiso Firmado y Autorizado (PDF) *</label>
+            <input type="file" id="miSolArchivoPDF" accept="application/pdf" required style="padding:10px;">
+          </div>
           <button class="btn-success" type="submit" style="margin-top:15px;">Enviar Solicitud a Administración</button>
         </form>
       </div>
 
-      <!-- HISTORIAL DE MIS SOLICITUDES -->
       <div class="card">
         <div class="card-header"><h2>Historial de Mis Solicitudes</h2></div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Tipo</th><th>Motivo</th><th>Periodo</th><th>Estatus</th></tr></thead>
-            <tbody id="tablaMisSolicitudes"><tr><td colspan="4" class="empty">No tienes solicitudes registradas.</td></tr></tbody>
+            <thead><tr><th>Tipo</th><th>Motivo</th><th>Periodo</th><th>Documento PDF</th><th>Estatus</th></tr></thead>
+            <tbody id="tablaMisSolicitudes"><tr><td colspan="5" class="empty">No tienes solicitudes registradas.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -485,7 +527,7 @@
   </div>
 </div>
 
-<!-- MODAL ALTA -->
+<!-- MODAL ALTA TRABAJADOR -->
 <div class="modal" id="modalRegistro">
   <div class="modal-content">
     <div class="modal-header">
@@ -513,7 +555,11 @@
       <div class="form-group"><label>No. Empleado *</label><input type="text" id="nuevoNoEmpleado" placeholder="EMP-4001"></div>
     </div>
 
-    <div class="form-group"><label>Correo *</label><input type="email" id="nuevoCorreo" placeholder="correo@afac.gob.mx"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Correo Electrónico (Para Login) *</label><input type="email" id="nuevoCorreo" placeholder="correo@afac.gob.mx"></div>
+      <div class="form-group"><label>Contraseña Asignada *</label><input type="text" id="nuevoPassword" value="sirca2026"></div>
+    </div>
+
     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
       <button class="btn-secondary" onclick="cerrarModalRegistro()">Cancelar</button>
       <button class="btn-success" onclick="registrarNuevoUsuario()">Guardar y Registrar</button>
@@ -526,7 +572,7 @@ let usuarios = [];
 let solicitudes = [];
 let totalBajasContador = 0;
 let usuarioSeleccionadoID = null;
-let trabajadorSesionID = "admin";
+let sesionActual = null; 
 
 let semanasGlobalKeys = [];
 let semanasGlobalMap = {};
@@ -547,8 +593,27 @@ const tiposDeIncidenciasSoportadas = [
   "Permanencia por Llegar Tarde"
 ];
 
-function mostrarMensaje(texto, tipo = "success") {
-  const mensaje = document.getElementById("mensaje");
+function guardarDatosEnStorage() {
+  localStorage.setItem("sirca_usuarios", JSON.stringify(usuarios));
+  localStorage.setItem("sirca_solicitudes", JSON.stringify(solicitudes));
+  localStorage.setItem("sirca_bajas", totalBajasContador);
+  localStorage.setItem("sirca_sesion", JSON.stringify(sesionActual));
+}
+
+function cargarDatosDeStorage() {
+  const guardadoUsuarios = localStorage.getItem("sirca_usuarios");
+  const guardadoSolicitudes = localStorage.getItem("sirca_solicitudes");
+  const guardadoBajas = localStorage.getItem("sirca_bajas");
+  const guardadoSesion = localStorage.getItem("sirca_sesion");
+
+  if (guardadoUsuarios) usuarios = JSON.parse(guardadoUsuarios);
+  if (guardadoSolicitudes) solicitudes = JSON.parse(guardadoSolicitudes);
+  if (guardadoBajas) totalBajasContador = parseInt(guardadoBajas, 10);
+  if (guardadoSesion) sesionActual = JSON.parse(guardadoSesion);
+}
+
+function mostrarMensaje(texto, tipo = "success", idElemento = "mensaje") {
+  const mensaje = document.getElementById(idElemento);
   if (!mensaje) return;
   mensaje.textContent = texto;
   mensaje.className = "message " + tipo;
@@ -562,40 +627,82 @@ function toggleTema() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  cargarDatosDeStorage();
   inicializarSemanasRolfi();
-  poblarSelectorRoles();
-  actualizarTodoAdmin();
+  
+  if (sesionActual) {
+    if (sesionActual.rol === 'admin') {
+      iniciarVistaAdmin();
+    } else {
+      iniciarVistaTrabajador(sesionActual.id);
+    }
+  } else {
+    mostrarPantallaLogin();
+  }
 });
 
-function poblarSelectorRoles() {
-  const select = document.getElementById("selectorRol");
-  select.innerHTML = '<option value="admin">👨‍💼 Vista Administrador / ROLFI</option>';
-  usuarios.forEach(u => {
-    const opt = document.createElement("option");
-    opt.value = u.id;
-    opt.textContent = `👤 Trabajador: ${u.nombre}`;
-    select.appendChild(opt);
-  });
+function mostrarPantallaLogin() {
+  document.getElementById("pantallaLogin").classList.remove("hidden");
+  document.getElementById("navTabsAdmin").classList.add("hidden");
+  document.getElementById("contenedorPrincipalApp").classList.add("hidden");
+  document.getElementById("panelAdminWrapper").classList.add("hidden");
+  document.getElementById("panelTrabajadorIndividual").classList.add("hidden");
+  document.getElementById("btnCerrarSesion").classList.add("hidden");
 }
 
-function cambiarRolSistema(rol) {
-  trabajadorSesionID = rol;
-  document.getElementById("selectorRol").value = rol;
-  const panelAdmin = document.getElementById("panelAdminWrapper");
-  const panelTrabajador = document.getElementById("panelTrabajadorIndividual");
-  const navTabs = document.getElementById("navTabsAdmin");
+function ejecutarLogin(e) {
+  e.preventDefault();
+  const correo = document.getElementById("loginCorreo").value.trim().toLowerCase();
+  const password = document.getElementById("loginPassword").value.trim();
 
-  if (rol === "admin") {
-    panelAdmin.classList.remove("hidden");
-    panelTrabajador.classList.add("hidden");
-    navTabs.classList.remove("hidden");
-    actualizarBandejaAdmin();
-  } else {
-    panelAdmin.classList.add("hidden");
-    panelTrabajador.classList.remove("hidden");
-    navTabs.classList.add("hidden");
-    cargarPortalTrabajador(rol);
+  if (correo === "admin@afac.gob.mx" && password === "admin123") {
+    sesionActual = { rol: 'admin' };
+    guardarDatosEnStorage();
+    iniciarVistaAdmin();
+    return;
   }
+
+  const trabajador = usuarios.find(u => u.correo?.toLowerCase() === correo);
+  if (trabajador) {
+    const passwordBD = trabajador.password || "sirca2026";
+    if (password === passwordBD) {
+      sesionActual = { rol: 'trabajador', id: trabajador.id };
+      guardarDatosEnStorage();
+      iniciarVistaTrabajador(trabajador.id);
+      return;
+    }
+  }
+
+  mostrarMensaje("❌ Credenciales incorrectas. Verifica tu correo y contraseña.", "error", "mensajeLogin");
+}
+
+function cerrarSesion() {
+  sesionActual = null;
+  localStorage.removeItem("sirca_sesion");
+  document.getElementById("loginCorreo").value = "";
+  document.getElementById("loginPassword").value = "";
+  mostrarPantallaLogin();
+  mostrarMensaje("Sesión cerrada correctamente.");
+}
+
+function iniciarVistaAdmin() {
+  document.getElementById("pantallaLogin").classList.add("hidden");
+  document.getElementById("navTabsAdmin").classList.remove("hidden");
+  document.getElementById("contenedorPrincipalApp").classList.remove("hidden");
+  document.getElementById("panelAdminWrapper").classList.remove("hidden");
+  document.getElementById("panelTrabajadorIndividual").classList.add("hidden");
+  document.getElementById("btnCerrarSesion").classList.remove("hidden");
+  actualizarTodoAdmin();
+}
+
+function iniciarVistaTrabajador(idTrabajador) {
+  document.getElementById("pantallaLogin").classList.add("hidden");
+  document.getElementById("navTabsAdmin").classList.add("hidden");
+  document.getElementById("contenedorPrincipalApp").classList.remove("hidden");
+  document.getElementById("panelAdminWrapper").classList.add("hidden");
+  document.getElementById("panelTrabajadorIndividual").classList.remove("hidden");
+  document.getElementById("btnCerrarSesion").classList.remove("hidden");
+  cargarPortalTrabajador(idTrabajador);
 }
 
 function cambiarVistaAdmin(vista) {
@@ -619,6 +726,7 @@ function cambiarVistaAdmin(vista) {
 }
 
 function actualizarTodoAdmin() {
+  guardarDatosEnStorage();
   document.getElementById("totalUsuarios").textContent = usuarios.length;
   document.getElementById("usuariosDentro").textContent = usuarios.filter(u => u.dentro).length;
   document.getElementById("totalBajas").textContent = totalBajasContador;
@@ -626,7 +734,6 @@ function actualizarTodoAdmin() {
   mostrarUsuarios();
   actualizarBandejaAdmin();
   if (usuarioSeleccionadoID) seleccionarUsuario(usuarioSeleccionadoID);
-  if (trabajadorSesionID !== "admin") cargarPortalTrabajador(trabajadorSesionID);
   renderizarCalendarioRolfi();
 }
 
@@ -741,7 +848,6 @@ function darDeBajaTrabajador(id) {
     document.getElementById("sinUsuario")?.classList.remove("hidden");
     document.getElementById("usuarioSeleccionado")?.classList.add("hidden");
     usuarioSeleccionadoID = null;
-    poblarSelectorRoles();
     actualizarTodoAdmin();
     mostrarMensaje(`Trabajador dado de baja correctamente.`);
   }
@@ -749,48 +855,64 @@ function darDeBajaTrabajador(id) {
 
 function enviarSolicitudTrabajador(e) {
   e.preventDefault();
-  const u = usuarios.find(x => x.id === trabajadorSesionID);
+  const u = usuarios.find(x => x.id === sesionActual.id);
   if (!u) return;
 
   const tipoSel = document.getElementById("miSolTipo").value;
   const fInicio = document.getElementById("miSolFechaInicio").value;
   const fFin = document.getElementById("miSolFechaFin").value;
-  const diasSolicitados = calcularDiasHabilesEntre(fInicio, fFin);
+  const inputArchivo = document.getElementById("miSolArchivoPDF");
 
-  let diasActualesVac1 = 0, diasActualesVac2 = 0, diasActualesEcon = 0;
-  solicitudes.filter(s => s.usuarioId === u.id && s.estado === "Aprobada").forEach(s => {
-    let cant = calcularDiasHabilesEntre(s.fechaInicio, s.fechaFin);
-    if (s.tipo.includes("Vacaciones 1ra Mitad")) diasActualesVac1 += cant;
-    if (s.tipo.includes("Vacaciones 2da Mitad")) diasActualesVac2 += cant;
-    if (s.tipo.includes("Permiso Económico")) diasActualesEcon += cant;
-  });
-
-  if (tipoSel.includes("Vacaciones 1ra Mitad") && (diasActualesVac1 + diasSolicitados > 10)) {
-    return mostrarMensaje(`Límite superado: Te quedan ${10 - diasActualesVac1} días disponibles en la 1ra mitad (solicitas ${diasSolicitados}).`, "error");
-  }
-  if (tipoSel.includes("Vacaciones 2da Mitad") && (diasActualesVac2 + diasSolicitados > 10)) {
-    return mostrarMensaje(`Límite superado: Te quedan ${10 - diasActualesVac2} días disponibles en la 2da mitad (solicitas ${diasSolicitados}).`, "error");
-  }
-  if (tipoSel.includes("Permiso Económico") && (diasActualesEcon + diasSolicitados > 12)) {
-    return mostrarMensaje(`Límite superado: Te quedan ${12 - diasActualesEcon} días económicos disponibles (solicitas ${diasSolicitados}).`, "error");
+  if (!inputArchivo.files || inputArchivo.files.length === 0) {
+    return mostrarMensaje("Debes adjuntar el formato PDF firmado y autorizado.", "error");
   }
 
-  const nuevaSol = {
-    id: "SOL-" + Math.floor(Math.random() * 90000 + 10000),
-    usuarioId: u.id,
-    nombreUsuario: u.nombre,
-    tipo: tipoSel,
-    motivo: document.getElementById("miSolMotivo").value,
-    fechaInicio: fInicio,
-    fechaFin: fFin,
-    estado: "Pendiente"
+  const archivoPDF = inputArchivo.files[0];
+  const lector = new FileReader();
+
+  lector.onload = function(event) {
+    const pdfBase64 = event.target.result;
+    const diasSolicitados = calcularDiasHabilesEntre(fInicio, fFin);
+
+    let diasActualesVac1 = 0, diasActualesVac2 = 0, diasActualesEcon = 0;
+    solicitudes.filter(s => s.usuarioId === u.id && s.estado === "Aprobada").forEach(s => {
+      let cant = calcularDiasHabilesEntre(s.fechaInicio, s.fechaFin);
+      if (s.tipo.includes("Vacaciones 1ra Mitad")) diasActualesVac1 += cant;
+      if (s.tipo.includes("Vacaciones 2da Mitad")) diasActualesVac2 += cant;
+      if (s.tipo.includes("Permiso Económico")) diasActualesEcon += cant;
+    });
+
+    if (tipoSel.includes("Vacaciones 1ra Mitad") && (diasActualesVac1 + diasSolicitados > 10)) {
+      return mostrarMensaje(`Límite superado: Te quedan ${10 - diasActualesVac1} días disponibles en la 1ra mitad.`, "error");
+    }
+    if (tipoSel.includes("Vacaciones 2da Mitad") && (diasActualesVac2 + diasSolicitados > 10)) {
+      return mostrarMensaje(`Límite superado: Te quedan ${10 - diasActualesVac2} días disponibles en la 2da mitad.`, "error");
+    }
+    if (tipoSel.includes("Permiso Económico") && (diasActualesEcon + diasSolicitados > 12)) {
+      return mostrarMensaje(`Límite superado: Te quedan ${12 - diasActualesEcon} días económicos disponibles.`, "error");
+    }
+
+    const nuevaSol = {
+      id: "SOL-" + Math.floor(Math.random() * 90000 + 10000),
+      usuarioId: u.id,
+      nombreUsuario: u.nombre,
+      tipo: tipoSel,
+      motivo: document.getElementById("miSolMotivo").value,
+      fechaInicio: fInicio,
+      fechaFin: fFin,
+      pdfData: pdfBase64,
+      pdfNombre: archivoPDF.name,
+      estado: "Pendiente"
+    };
+
+    solicitudes.push(nuevaSol);
+    document.getElementById("formMiSolicitud").reset();
+    mostrarMensaje("Solicitud y PDF enviados correctamente a administración.");
+    cargarPortalTrabajador(u.id);
+    guardarDatosEnStorage();
   };
 
-  solicitudes.push(nuevaSol);
-  document.getElementById("formMiSolicitud").reset();
-  mostrarMensaje("Solicitud enviada correctamente a administración.");
-  cargarPortalTrabajador(u.id);
-  actualizarTodoAdmin();
+  lector.readAsDataURL(archivoPDF);
 }
 
 function cargarPortalTrabajador(id) {
@@ -842,13 +964,14 @@ function cargarPortalTrabajador(id) {
   const misSol = solicitudes.filter(s => s.usuarioId === u.id);
   const tbody = document.getElementById("tablaMisSolicitudes");
   if (!misSol.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty">No tienes solicitudes registradas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No tienes solicitudes registradas.</td></tr>';
   } else {
     tbody.innerHTML = misSol.map(s => `
       <tr>
         <td>${s.tipo}</td>
         <td>${s.motivo}</td>
         <td>${s.fechaInicio} al ${s.fechaFin}</td>
+        <td><a href="${s.pdfData}" download="${s.pdfNombre}" style="color:var(--afac-guinda); font-weight:700; text-decoration:none;">📄 ${s.pdfNombre || 'Ver PDF'}</a></td>
         <td><strong style="color:${s.estado === 'Aprobada' ? '#16A34A' : s.estado === 'Rechazada' ? '#DC2626' : '#D97706'}">${s.estado}</strong></td>
       </tr>
     `).join("");
@@ -861,10 +984,11 @@ function subirFotoUsuario(event) {
   const lector = new FileReader();
   lector.onload = function(e) {
     const base64Image = e.target.result;
-    const u = usuarios.find(x => x.id === trabajadorSesionID);
+    const u = usuarios.find(x => x.id === sesionActual.id);
     if (u) {
       u.foto = base64Image;
       cargarPortalTrabajador(u.id);
+      guardarDatosEnStorage();
       mostrarMensaje("Fotografía de perfil actualizada con éxito.");
     }
   };
@@ -888,10 +1012,10 @@ function validarAsistenciaGPS() {
       const distancia = Math.hypot(lat - afacLat, lon - afacLon);
 
       if (distancia < 0.5) {
-        const u = usuarios.find(x => x.id === trabajadorSesionID);
+        const u = usuarios.find(x => x.id === sesionActual.id);
         if (u) {
           u.dentro = !u.dentro;
-          actualizarTodoAdmin();
+          guardarDatosEnStorage();
           cargarPortalTrabajador(u.id);
           estadoGPS.innerHTML = `<span style="color:#16A34A; font-weight:700;">✅ ¡Ubicación verificada en AFAC! Chequeo registrado con éxito.</span>`;
           mostrarMensaje(`Asistencia registrada correctamente por GPS.`);
@@ -980,7 +1104,6 @@ function irSemanaActual() {
   renderizarCalendarioRolfi();
 }
 
-// PDF MEJORADO CON DISEÑO EJECUTIVO Y FIRMA DEL DIRECTOR GENERAL
 function exportarSemanaPDF() {
   const claveSemana = semanasGlobalKeys[indiceSemanaActual];
   const datosSemana = semanasGlobalMap[claveSemana];
@@ -1072,16 +1195,15 @@ function exportarSemanaPDF() {
       <tbody>${tbodyHTML}</tbody>
     </table>
 
-    <!-- BLOQUE DE FIRMA INSTITUCIONAL DEL DIRECTOR GENERAL -->
     <div style="margin-top: 40px; display: flex; justify-content: center; page-break-inside: avoid;">
-      <div style="text-align: width: 300px; text-align: center;">
+      <div style="width: 300px; text-align: center;">
         <div style="border-bottom: 1px solid #0F172A; width: 280px; margin: 0 auto 8px auto; height: 35px;"></div>
         <strong style="font-size: 11px; color: #0F172A; text-transform: uppercase; display: block;">Director General de la AFAC</strong>
         <span style="font-size: 9px; color: #64748B; font-weight: 600;">Agencia Federal de Aviación Civil</span>
       </div>
     </div>
 
-    <div style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 8px; color: #64748B; border-top: 1px solid #E2E8F0; pt: 8px;">
+    <div style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 8px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 8px;">
       <span>Documento oficial validado por el Sistema Integral de Registro y Control de Asistencia (SIRCA)</span>
       <span>Fecha de emisión: ${new Date().toLocaleDateString()}</span>
     </div>
@@ -1105,7 +1227,7 @@ function actualizarBandejaAdmin() {
   const pend = solicitudes.filter(s => s.estado === "Pendiente");
 
   if (!pend.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty">No hay solicitudes pendientes de revisión.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay solicitudes pendientes de revisión.</td></tr>';
     return;
   }
 
@@ -1114,6 +1236,9 @@ function actualizarBandejaAdmin() {
       <td><strong>${s.nombreUsuario}</strong><br><small>${s.usuarioId}</small></td>
       <td>${s.tipo}</td>
       <td>${s.motivo}<br><small>${s.fechaInicio} al ${s.fechaFin}</small></td>
+      <td>
+        ${s.pdfData ? `<a href="${s.pdfData}" download="${s.pdfNombre || 'permiso.pdf'}" class="btn-primary" style="padding:6px 12px; font-size:11px; text-decoration:none; display:inline-block; text-align:center;">📥 Ver / Descargar PDF</a>` : '<span style="color:var(--text-muted);">Sin PDF</span>'}
+      </td>
       <td>
         <button class="btn-success" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s.id}', 'Aprobada')">Aprobar</button>
         <button class="btn-danger" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s.id}', 'Rechazada')">Rechazar</button>
@@ -1176,7 +1301,7 @@ function renderizarCalendarioRolfi() {
   let bodyHTML = "";
   usuarios.forEach((user, index) => {
     bodyHTML += `<tr>`;
-    bodyHTML += `<td style="text-align: left; padding: 10px; font-weight: 700; background: var(--card-bg); position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border-color); cursor:pointer;" onclick="cambiarRolSistema('${user.id}')">${user.nombre}<br><small style="color:var(--afac-guinda);">${user.turno}</small></td>`;
+    bodyHTML += `<td style="text-align: left; padding: 10px; font-weight: 700; background: var(--card-bg); position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border-color);">${user.nombre}<br><small style="color:var(--afac-guinda);">${user.turno}</small></td>`;
     
     diasArray.forEach(item => {
       const anioStr = item.anioNum;
@@ -1244,16 +1369,16 @@ function registrarNuevoUsuario() {
   const area = document.getElementById("nuevaArea")?.value.trim();
   const turno = document.getElementById("nuevoTurno")?.value;
   const noEmpleado = document.getElementById("nuevoNoEmpleado")?.value.trim();
-  const correo = document.getElementById("nuevoCorreo")?.value.trim();
+  const correo = document.getElementById("nuevoCorreo")?.value.trim().toLowerCase();
+  const password = document.getElementById("nuevoPassword")?.value.trim();
 
-  if (!nombre || !puesto || !area || !noEmpleado || !correo) return mostrarMensaje("Completa todos los campos obligatorios.", "error");
+  if (!nombre || !puesto || !area || !noEmpleado || !correo || !password) return mostrarMensaje("Completa todos los campos obligatorios.", "error");
 
-  const nuevo = { id: document.getElementById("nuevoUsuarioID").textContent, nombre, escuela: puesto, area, turno, TIA: noEmpleado, correo, dentro: true, foto: null };
+  const nuevo = { id: document.getElementById("nuevoUsuarioID").textContent, nombre, escuela: puesto, area, turno, TIA: noEmpleado, correo, password, dentro: true, foto: null };
   usuarios.push(nuevo);
   cerrarModalRegistro();
   document.getElementById("modalRegistro").querySelectorAll("input").forEach(i => i.value = "");
   mostrarMensaje("Trabajador registrado con éxito.");
-  poblarSelectorRoles();
   actualizarTodoAdmin();
 }
 </script>
