@@ -452,6 +452,17 @@
 .bitacora-tabla td.nombre{text-align:left;font-weight:bold}.bitacora-tabla td.firma{min-width:85px;height:30px}.bitacora-tabla td.nota{min-width:90px}
 @media(max-width:650px){#vistaBitacora .card{padding:12px}#vistaBitacora .card-header{align-items:stretch}#vistaBitacora .card-header button{width:100%;justify-content:center}}
 
+  
+    /* Escáner exclusivo del trabajador, adaptado a celular y tablet */
+    .sirca-qr-controles { display:flex;flex-wrap:wrap;gap:10px;margin:12px 0; }
+    .sirca-qr-controles button { flex:1 1 170px;justify-content:center; }
+    .sirca-lector-trabajador { width:100%;max-width:520px;margin:0 auto;overflow:hidden;border-radius:14px; }
+    .sirca-lector-trabajador video { max-width:100%;border-radius:12px; }
+    .sirca-qr-resultado { padding:13px;border-radius:12px;background:var(--afac-bg);
+      border:1px solid var(--border-color);font-size:13px;overflow-wrap:anywhere; }
+    @media(max-width:600px) { .sirca-qr-controles { flex-direction:column; }
+      .sirca-qr-controles button { flex:auto;width:100%; } }
+
   </style>
 </head>
 
@@ -630,21 +641,6 @@
         </div>
       </div>
 
-      <!-- VISTA ESCÁNER QR DE ASISTENCIA -->
-      <div id="vistaEscaner" class="hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>📷 Escáner QR de Asistencia (Entrada y Salida)</h2>
-          </div>
-          <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">
-            Utiliza la cámara para escanear la credencial QR del trabajador. El sistema registrará automáticamente su <strong>Entrada</strong> o <strong>Salida</strong> en la hoja semanal según corresponda.
-          </p>
-          <div style="max-width: 500px; margin: 0 auto; text-align: center;">
-            <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--border-color);"></div>
-            <div id="resultadoEscaneoBox" style="margin-top: 20px; padding: 16px; border-radius: 12px; background: var(--afac-bg); border: 1px solid var(--border-color); font-weight: 700; font-size: 14px; display: none;"></div>
-          </div>
-        </div>
-      </div>
 
       <!-- HOJA DE ASISTENCIA: FORMATO INSTITUCIONAL -->
       <div id="vistaBitacora" class="hidden">
@@ -717,6 +713,30 @@
           <button class="btn-success" onclick="validarAsistenciaGPS()" disabled>🌐 Chequeo GPS (pendiente de validación segura)</button>
           <p id="gpsEstadoTexto" style="margin:10px 0 0; font-size:12px; color:var(--text-muted);"></p>
           <div id="miContenedorQR" style="margin-top:15px; display:flex; justify-content:center;"></div>
+        </div>
+      </div>
+
+
+      <!-- ESCÁNER DE ASISTENCIA EXCLUSIVO DEL TRABAJADOR -->
+      <div class="card" id="tarjetaEscanerTrabajador">
+        <div class="card-header">
+          <h2>📷 Mi registro de entrada y salida</h2>
+        </div>
+        <p style="font-size:13px;color:var(--text-muted);">
+          Escanea el QR de tu credencial. La primera lectura del día registra la entrada;
+          la segunda registra la salida.
+        </p>
+        <div class="sirca-qr-controles">
+          <button type="button" class="btn-success" id="abrirEscanerTrabajador" onclick="abrirCamaraTrabajador()">📷 Abrir cámara</button>
+          <button type="button" class="btn-secondary" id="cerrarEscanerTrabajador" onclick="cerrarCamaraTrabajador()">Detener cámara</button>
+        </div>
+        <div id="lectorQRTrabajador" class="sirca-lector-trabajador"></div>
+        <div class="form-group" style="margin-top:15px">
+          <label for="imagenQRTrabajador">O seleccionar una imagen del QR desde el celular</label>
+          <input id="imagenQRTrabajador" type="file" accept="image/*" onchange="escanearImagenTrabajador(this)">
+        </div>
+        <div id="resultadoQRTrabajador" role="status" aria-live="polite" class="sirca-qr-resultado">
+          Abre la cámara o selecciona una imagen para registrar tu asistencia.
         </div>
       </div>
 
@@ -939,13 +959,14 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function mostrarPantallaLogin() {
+  cerrarCamaraTrabajador();
   document.getElementById("pantallaLogin").classList.remove("hidden");
   document.getElementById("navTabsAdmin").classList.add("hidden");
   document.getElementById("contenedorPrincipalApp").classList.add("hidden");
   document.getElementById("panelAdminWrapper").classList.add("hidden");
   document.getElementById("panelTrabajadorIndividual").classList.add("hidden");
   document.getElementById("btnCerrarSesion").classList.add("hidden");
-  detenerEscanerQR();
+  cerrarCamaraTrabajador();
 }
 
 async function ejecutarLogin(e) {
@@ -957,6 +978,7 @@ async function ejecutarLogin(e) {
 }
 
 async function cerrarSesion() {
+  await cerrarCamaraTrabajador();
   try { await auth.signOut(); } catch(e) { errorFirebase(e); }
 }
 
@@ -981,84 +1003,141 @@ function iniciarVistaTrabajador(idTrabajador) {
   cargarPortalTrabajador(idTrabajador);
 }
 
+
 function cambiarVistaAdmin(vista) {
-  const nombres = ['control','rolfi','escaner','bitacora'];
+  const nombres = ['control','rolfi','bitacora'];
   if (!nombres.includes(vista)) vista = 'control';
   const botones = document.querySelectorAll('.nav-tabs .tab-btn');
-  const ids = {control:'vistaControl',rolfi:'vistaRolfi',escaner:'vistaEscaner',bitacora:'vistaBitacora'};
+  const ids = {control:'vistaControl',rolfi:'vistaRolfi',bitacora:'vistaBitacora'};
   nombres.forEach((nombre, i) => {
     const panel = document.getElementById(ids[nombre]);
     if (panel) panel.classList.toggle('hidden', nombre !== vista);
     if (botones[i]) botones[i].classList.toggle('active', nombre === vista);
   });
-  escanerVistaActiva = vista === 'escaner';
-  if (vista === 'escaner') iniciarEscanerQR();
-  else detenerEscanerQR();
   try {
     if (vista === 'rolfi') renderizarCalendarioRolfi();
     if (vista === 'bitacora') renderizarTablaBitacora();
   } catch (error) { console.error('Error al actualizar sección:', error); }
 }
 
-function iniciarEscanerQR() {
-  const box = document.getElementById('resultadoEscaneoBox');
-  if (box) box.style.display = 'none';
-  escanerVistaActiva = true;
-  // Encadenar las operaciones evita iniciar/detener la cámara simultáneamente.
-  escanerOperacion = escanerOperacion.catch(() => {}).then(async () => {
-    if (!escanerVistaActiva) return;
-    if (typeof Html5Qrcode === 'undefined') throw new Error('No se cargó la biblioteca QR');
-    if (!html5QrCodeScanner) html5QrCodeScanner = new Html5Qrcode('reader');
-    const estado = html5QrCodeScanner.getState();
-    if (estado === 2 || estado === 3) return;
-    await html5QrCodeScanner.start(
-      {facingMode:'environment'},
-      {fps:10, qrbox:{width:250,height:250}},
-      texto => procesarLecturaQR(texto.trim()),
-      () => {}
-    );
-    if (!escanerVistaActiva) await detenerEscanerQRInterno();
-  }).catch(error => {
-    console.error('Error al iniciar escáner QR:', error);
-    if (escanerVistaActiva && box) {
-      box.style.display = 'block';
-      box.textContent = 'No se pudo iniciar la cámara. Revisa los permisos y vuelve a intentar.';
-    }
-  });
-}
+// La cámara y el registro pertenecen exclusivamente al usuario autenticado.
+let camaraTrabajador = null;
+let camaraTrabajadorActiva = false;
+let operacionCamaraTrabajador = Promise.resolve();
+let registroQRTrabajadorOcupado = false;
+let ultimoQRTrabajador = '';
+let ultimaLecturaQRTrabajador = 0;
 
-async function detenerEscanerQRInterno() {
-  if (!html5QrCodeScanner) return;
-  const estado = html5QrCodeScanner.getState();
-  if (estado === 2 || estado === 3) {
-    await html5QrCodeScanner.stop();
+function mostrarEstadoQRTrabajador(texto) {
+  const el = document.getElementById('resultadoQRTrabajador');
+  if (el) el.textContent = texto;
+}
+function abrirCamaraTrabajador() {
+  if (!auth.currentUser || sesionActual?.rol !== 'trabajador') {
+    mostrarEstadoQRTrabajador('Debes iniciar sesión como trabajador.');
+    return;
   }
-}
-
-function detenerEscanerQR() {
-  escanerVistaActiva = false;
-  escanerOperacion = escanerOperacion.catch(() => {}).then(detenerEscanerQRInterno).catch(error => {
-    console.warn('No fue posible detener el escáner:', error);
+  camaraTrabajadorActiva = true;
+  mostrarEstadoQRTrabajador('Solicitando acceso a la cámara…');
+  operacionCamaraTrabajador = operacionCamaraTrabajador.catch(()=>{}).then(async()=>{
+    if (!camaraTrabajadorActiva) return;
+    if (!window.isSecureContext) throw Error('La cámara requiere HTTPS. Abre el sitio desde GitHub Pages.');
+    if (typeof Html5Qrcode === 'undefined') throw Error('No se cargó la biblioteca de lectura QR.');
+    if (!camaraTrabajador) camaraTrabajador = new Html5Qrcode('lectorQRTrabajador');
+    const estado = camaraTrabajador.getState();
+    if (estado !== 2 && estado !== 3) {
+      await camaraTrabajador.start(
+        {facingMode:'environment'},
+        {fps:8,qrbox:{width:220,height:220}},
+        codigo=>registrarQRTrabajador(codigo.trim()),
+        ()=>{}
+      );
+    }
+    if (!camaraTrabajadorActiva) await detenerCamaraTrabajadorInterno();
+    else mostrarEstadoQRTrabajador('Cámara activa. Coloca el QR dentro del recuadro.');
+  }).catch(e=>{
+    camaraTrabajadorActiva = false;
+    console.error('Cámara del trabajador:',e);
+    mostrarEstadoQRTrabajador('No se pudo abrir la cámara: '+(e.message||e));
   });
 }
-
-async function procesarLecturaQR(qrID) {
-  const trabajador = usuarios.find(u => u.id === qrID);
-  const box = document.getElementById('resultadoEscaneoBox'); box.style.display='block';
-  if (!trabajador) { box.textContent='Código QR no reconocido'; return; }
-  const hoy = new Date();
-  const fecha = [hoy.getFullYear(),String(hoy.getMonth()+1).padStart(2,'0'),String(hoy.getDate()).padStart(2,'0')].join('-');
-  const hora = hoy.toLocaleTimeString('es-MX');
-  const ref = db.collection('asistencias').doc(trabajador.uid+'_'+fecha);
+async function detenerCamaraTrabajadorInterno() {
+  if (!camaraTrabajador) return;
+  const estado = camaraTrabajador.getState();
+  if (estado === 2 || estado === 3) await camaraTrabajador.stop();
+}
+function cerrarCamaraTrabajador() {
+  camaraTrabajadorActiva = false;
+  operacionCamaraTrabajador = operacionCamaraTrabajador.catch(()=>{}).then(detenerCamaraTrabajadorInterno).catch(console.warn);
+  return operacionCamaraTrabajador;
+}
+async function escanearImagenTrabajador(input) {
+  const archivo = input.files?.[0];
+  if (!archivo) return;
   try {
+    if (!auth.currentUser || sesionActual?.rol !== 'trabajador') throw Error('Inicia sesión como trabajador.');
+    if (typeof Html5Qrcode === 'undefined') throw Error('No se cargó la biblioteca QR.');
+    await cerrarCamaraTrabajador();
+    if (!camaraTrabajador) camaraTrabajador = new Html5Qrcode('lectorQRTrabajador');
+    mostrarEstadoQRTrabajador('Leyendo imagen del QR…');
+    const codigo = await camaraTrabajador.scanFile(archivo, true);
+    await registrarQRTrabajador(codigo.trim());
+  } catch(e) {
+    console.error('Imagen QR:',e);
+    mostrarEstadoQRTrabajador('No se pudo leer el QR: '+(e.message||e));
+  } finally { input.value = ''; }
+}
+async function registrarQRTrabajador(codigo) {
+  if (registroQRTrabajadorOcupado) return;
+  if (!auth.currentUser || sesionActual?.rol !== 'trabajador') {
+    mostrarEstadoQRTrabajador('Acceso exclusivo del trabajador.');
+    return;
+  }
+  const uid = auth.currentUser.uid;
+  const trabajador = usuarios.find(u => u.uid === uid || u._docId === uid);
+  if (!trabajador || String(trabajador.id) !== String(codigo)) {
+    mostrarEstadoQRTrabajador('El QR no corresponde a tu credencial de trabajador.');
+    return;
+  }
+  // Evita que la cámara genere una entrada y salida con la misma lectura continua.
+  if (codigo === ultimoQRTrabajador && Date.now() - ultimaLecturaQRTrabajador < 12000) return;
+  registroQRTrabajadorOcupado = true;
+  ultimoQRTrabajador = codigo;
+  ultimaLecturaQRTrabajador = Date.now();
+  mostrarEstadoQRTrabajador('QR reconocido. Guardando asistencia en Firebase…');
+  try {
+    const ahora = new Date();
+    const fecha = fechaLocalBitacora(ahora);
+    const hora = ahora.toLocaleTimeString('es-MX',{hour12:false});
+    const ref = db.collection('asistencias').doc(uid+'_'+fecha);
+    let movimiento = '';
     await db.runTransaction(async tx => {
-      const snap=await tx.get(ref);
-      if (!snap.exists) tx.set(ref,{id:ref.id,usuarioUid:trabajador.uid,usuarioId:trabajador.id,nombre:trabajador.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'});
-      else if(snap.data().salida==='-') tx.update(ref,{salida:hora,estatus:'Completado'});
-      else throw Error('La jornada ya tiene entrada y salida');
+      const doc = await tx.get(ref);
+      if (!doc.exists) {
+        movimiento = 'Entrada';
+        tx.set(ref,{
+          id:ref.id,usuarioUid:uid,usuarioId:trabajador.id,
+          nombre:trabajador.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'
+        });
+      } else if (doc.data().usuarioUid === uid && doc.data().salida === '-') {
+        movimiento = 'Salida';
+        tx.update(ref,{salida:hora,estatus:'Completado'});
+      } else {
+        throw Error('Ya tienes registrada la entrada y la salida de hoy.');
+      }
     });
-    box.textContent='Asistencia registrada: '+trabajador.nombre+' '+hora;
-  } catch(e) { box.textContent=e.message; }
+    await cerrarCamaraTrabajador();
+    mostrarEstadoQRTrabajador('✅ '+movimiento+' registrada correctamente a las '+hora+'.');
+  } catch(e) {
+    console.error('Asistencia QR trabajador:',e);
+    mostrarEstadoQRTrabajador(
+      e.code === 'permission-denied'
+      ? 'Firestore rechazó el registro. Revisa los permisos de la colección asistencias.'
+      : 'No se pudo registrar: '+(e.message||e)
+    );
+  } finally {
+    registroQRTrabajadorOcupado = false;
+  }
 }
 
 function fechaLocalBitacora(d = new Date()) {
