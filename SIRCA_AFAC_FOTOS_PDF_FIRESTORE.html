@@ -426,6 +426,26 @@
       #panelTrabajadorIndividual #miCorreo {font-size:12px !important;}
     }
 
+
+/* Lista de asistencia institucional: visualización y exportación */
+#contenedorFormatoBitacora{overflow-x:auto;background:#fff;color:#111;border:1px solid #111;border-radius:0}
+.bitacora-encabezado{min-width:850px;color:#111;font-family:Arial,sans-serif}
+.bitacora-marcas{display:grid;grid-template-columns:1fr 1fr;min-height:75px;align-items:center}
+.bitacora-comunicaciones,.bitacora-afac{padding:8px 15px;display:flex;flex-direction:column;justify-content:center}
+.bitacora-comunicaciones{border-right:1px solid #bbb;color:#9c2141}
+.bitacora-afac{color:#656565;align-items:center}
+.bitacora-marca{font:bold 30px Georgia,serif;letter-spacing:1px}
+.bitacora-marcas small{font:bold 8px Arial,sans-serif;letter-spacing:1px}
+.bitacora-titulo{text-align:center;font:bold 10px Arial,sans-serif;border-top:1px solid #111;border-bottom:1px solid #111;padding:3px}
+.bitacora-meta{display:grid;grid-template-columns:85px 1fr;border-bottom:1px solid #111;font:11px Arial,sans-serif}
+.bitacora-meta>*{padding:4px;border-right:1px solid #111;border-bottom:1px solid #111}
+.bitacora-meta span{font-weight:bold}
+.bitacora-tabla{min-width:850px;width:100%;border-collapse:collapse;table-layout:fixed;font-family:Arial,sans-serif}
+.bitacora-tabla th,.bitacora-tabla td{border:1px solid #111;color:#111;background:#fff;padding:5px 4px;font:10px Arial,sans-serif;text-align:center;overflow-wrap:anywhere}
+.bitacora-tabla th{font-weight:bold}.bitacora-tabla th:nth-child(2){width:23%}
+.bitacora-tabla td.nombre{text-align:left;font-weight:bold}.bitacora-tabla td.firma{min-width:85px;height:30px}.bitacora-tabla td.nota{min-width:90px}
+@media(max-width:650px){#vistaBitacora .card{padding:12px}#vistaBitacora .card-header{align-items:stretch}#vistaBitacora .card-header button{width:100%;justify-content:center}}
+
   </style>
 </head>
 
@@ -620,31 +640,18 @@
         </div>
       </div>
 
-      <!-- VISTA HOJA DE FIRMA SEMANAL -->
+      <!-- HOJA DE ASISTENCIA: FORMATO INSTITUCIONAL -->
       <div id="vistaBitacora" class="hidden">
         <div class="card">
-          <div class="card-header">
-            <h2>📋 Hoja Semanal de Firma de Entrada y Salida</h2>
-            <button class="btn-danger" onclick="exportarBitacoraPDF()">📥 Descargar Hoja de Firma PDF</button>
+          <div class="card-header"><h2>📋 Lista de asistencia y firma</h2><button class="btn-danger" onclick="exportarBitacoraPDF()">📥 Descargar PDF</button></div>
+          <div class="form-row" style="margin-bottom:15px">
+            <div class="form-group"><label>Área / Comandancia</label><input id="bitacoraArea" value="Comandancia Aeropuerto Internacional Felipe Ángeles" oninput="renderizarTablaBitacora()"></div>
+            <div class="form-group"><label>Fecha de la lista</label><input id="bitacoraFecha" type="date" onchange="renderizarTablaBitacora()"></div>
           </div>
-          <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">
-            Registro detallado de las horas exactas de entrada y salida capturadas mediante el escaneo de códigos QR durante la semana en curso.
-          </p>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Trabajador</th>
-                  <th>Fecha</th>
-                  <th>Hora de Entrada (QR)</th>
-                  <th>Hora de Salida (QR)</th>
-                  <th>Estatus Diario</th>
-                </tr>
-              </thead>
-              <tbody id="tablaBitacoraAsistencia">
-                <tr><td colspan="5" class="empty">No hay registros de entradas o salidas escaneadas aún.</td></tr>
-              </tbody>
-            </table>
+          <p style="font-size:12px;color:var(--text-muted)">Formato de firma por día. Las horas se toman de Firestore; las firmas y notas se dejan en blanco para su llenado.</p>
+          <div class="table-container" id="contenedorFormatoBitacora">
+            <div id="encabezadoBitacora" class="bitacora-encabezado"></div>
+            <table class="bitacora-tabla"><thead><tr><th rowspan="2">ID</th><th rowspan="2">NOMBRE COMPLETO</th><th rowspan="2">HORARIO</th><th colspan="2">ENTRADA</th><th colspan="2">SALIDA</th><th rowspan="2">NOTA</th></tr><tr><th>HORA</th><th>FIRMA</th><th>HORA</th><th>FIRMA</th></tr></thead><tbody id="tablaBitacoraAsistencia"></tbody></table>
           </div>
         </div>
       </div>
@@ -1048,101 +1055,47 @@ async function procesarLecturaQR(qrID) {
   } catch(e) { box.textContent=e.message; }
 }
 
-function renderizarTablaBitacora() {
-  const tbody = document.getElementById("tablaBitacoraAsistencia");
-  if (!registroBitacora.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay registros de entradas o salidas escaneadas aún.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = registroBitacora.map(r => `
-    <tr>
-      <td><strong>${escaparHTML(r.nombre)}</strong><br><small>${escaparHTML(r.usuarioId)}</small></td>
-      <td>${escaparHTML(r.fecha)}</td>
-      <td><strong style="color:#16A34A;">${escaparHTML(r.entrada)}</strong></td>
-      <td><strong style="color:#D97706;">${escaparHTML(r.salida)}</strong></td>
-      <td><span class="status ${r.estatus === 'En Turno' ? 'status-dentro' : 'status-fuera'}">${escaparHTML(r.estatus)}</span></td>
-    </tr>
-  `).join("");
+function fechaLocalBitacora(d = new Date()) {
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
 }
-
-function exportarBitacoraPDF() {
-  mostrarMensaje("Generando hoja de firma semanal en PDF...");
-  const contenedorPDF = document.createElement("div");
-  contenedorPDF.style.padding = "20px";
-  contenedorPDF.style.background = "#FFFFFF";
-  contenedorPDF.style.color = "#0F172A";
-  contenedorPDF.style.fontFamily = "Montserrat, sans-serif";
-  contenedorPDF.style.fontSize = "11px";
-
-  let filasHTML = "";
-  if (!registroBitacora.length) {
-    filasHTML = `<tr><td colspan="5" style="text-align:center; padding:15px;">No hay registros de asistencia.</td></tr>`;
-  } else {
-    registroBitacora.forEach(r => {
-      filasHTML += `
-        <tr>
-          <td style="border: 1px solid #CBD5E1; padding: 8px;">${escaparHTML(r.nombre)} (${escaparHTML(r.usuarioId)})</td>
-          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">${escaparHTML(r.fecha)}</td>
-          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center; font-weight:700; color:#16A34A;">${escaparHTML(r.entrada)}</td>
-          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center; font-weight:700; color:#D97706;">${escaparHTML(r.salida)}</td>
-          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">${escaparHTML(r.estatus)}</td>
-        </tr>
-      `;
-    });
-  }
-
-  contenedorPDF.innerHTML = `
-    <div style="border-bottom: 3px solid #691C32; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <h2 style="margin: 0; color: #691C32; font-size: 15px; text-transform: uppercase; font-weight: 800;">Agencia Federal de Aviación Civil</h2>
-        <p style="margin: 3px 0 0; font-size: 10px; color: #64748B; font-weight: 700;">Secretaría de Infraestructura, Comunicaciones y Transportes | Sistema SIRCA</p>
-      </div>
-      <div style="text-align: right;">
-        <span style="background: #691C32; color: white; padding: 5px 12px; border-radius: 6px; font-size: 10px; font-weight: 800;">Hoja Semanal de Firma</span>
-      </div>
-    </div>
-
-    <h3 style="text-align: center; color: #0F172A; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; font-weight: 700;">Registro de Control de Asistencia por Escaneo QR (Entrada y Salida)</h3>
-    
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
-      <thead>
-        <tr style="background:#691C32; color:white;">
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:left;">Trabajador</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Fecha</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Hora Entrada</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Hora Salida</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Estatus</th>
-        </tr>
-      </thead>
-      <tbody>${filasHTML}</tbody>
-    </table>
-
-    <div style="margin-top: 40px; display: flex; justify-content: center; page-break-inside: avoid;">
-      <div style="width: 300px; text-align: center;">
-        <div style="border-bottom: 1px solid #0F172A; width: 280px; margin: 0 auto 8px auto; height: 35px;"></div>
-        <strong style="font-size: 11px; color: #0F172A; text-transform: uppercase; display: block;">Director General de la AFAC</strong>
-        <span style="font-size: 9px; color: #64748B; font-weight: 600;">Agencia Federal de Aviación Civil</span>
-      </div>
-    </div>
-
-    <div style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 8px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 8px;">
-      <span>Documento oficial validado por el Sistema Integral de Registro y Control de Asistencia (SIRCA)</span>
-      <span>Fecha de emisión: ${new Date().toLocaleDateString()}</span>
-    </div>
-  `;
-
-  const opciones = {
-    margin:       10,
-    filename:     `Hoja_Firma_Semanal_AFAC.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  html2pdf().from(contenedorPDF).set(opciones).save().then(() => {
-    mostrarMensaje("Hoja de firma semanal PDF exportada con éxito.");
-  });
+function fechaBitacoraSeleccionada() {
+  const campo = document.getElementById('bitacoraFecha');
+  if (campo && !campo.value) campo.value = fechaLocalBitacora();
+  return campo?.value || fechaLocalBitacora();
+}
+function construirEncabezadoBitacora(fecha, area) {
+  const f = new Date(fecha + 'T12:00:00');
+  const fechaTexto = f.toLocaleDateString('es-MX', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  return `<div class="bitacora-marcas"><div class="bitacora-comunicaciones"><span class="bitacora-marca">COMUNICACIONES</span><small>SECRETARÍA DE INFRAESTRUCTURA, COMUNICACIONES Y TRANSPORTES</small></div><div class="bitacora-afac"><span class="bitacora-marca">AFAC</span><small>AGENCIA FEDERAL DE AVIACIÓN CIVIL</small></div></div><div class="bitacora-titulo">LISTA DE ASISTENCIA</div><div class="bitacora-meta"><strong>ÁREA:</strong><span>${escaparHTML(area)}</span><strong>FECHA:</strong><span>${escaparHTML(fechaTexto)}</span></div>`;
+}
+function datosFilasBitacora(fecha) {
+  const asistencias = registroBitacora.filter(r => r.fecha === fecha);
+  const porUid = new Map(asistencias.map(r => [String(r.usuarioUid || r.usuarioId || ''), r]));
+  const plantilla = usuarios.filter(u => u.activo !== false);
+  if (!plantilla.length) return asistencias.map(r => ({u: {nombre:r.nombre, id:r.usuarioId, turno:'—'},r}));
+  return plantilla.map(u => ({u, r: porUid.get(String(u.uid || u.id)) || asistencias.find(r => r.usuarioId === u.id) || null}));
+}
+function renderizarTablaBitacora() {
+  const tbody = document.getElementById('tablaBitacoraAsistencia');
+  if (!tbody) return;
+  const fecha = fechaBitacoraSeleccionada();
+  const area = document.getElementById('bitacoraArea')?.value || '';
+  document.getElementById('encabezadoBitacora').innerHTML = construirEncabezadoBitacora(fecha,area);
+  const filas = datosFilasBitacora(fecha);
+  tbody.innerHTML = filas.length ? filas.map(({u,r}) => `<tr><td>${escaparHTML(u.noEmpleado || u.numeroEmpleado || u.id || '—')}</td><td class="nombre">${escaparHTML(u.nombre || r?.nombre || '—')}</td><td>${escaparHTML(u.turno || u.horario || '—')}</td><td>${escaparHTML(r?.entrada && r.entrada !== '-' ? r.entrada : '')}</td><td class="firma"></td><td>${escaparHTML(r?.salida && r.salida !== '-' ? r.salida : '')}</td><td class="firma"></td><td class="nota"></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No hay trabajadores o asistencias disponibles.</td></tr>';
+}
+async function exportarBitacoraPDF() {
+  renderizarTablaBitacora();
+  if (typeof html2pdf === 'undefined') { mostrarMensaje('No se cargó la librería para exportar PDF.','error'); return; }
+  const origen = document.getElementById('contenedorFormatoBitacora');
+  const copia = origen.cloneNode(true);
+  copia.style.cssText = 'background:white;color:#111;width:1050px;max-width:none;overflow:visible;padding:8px;';
+  copia.querySelectorAll('table').forEach(t => {t.style.width='100%';t.style.minWidth='0';});
+  const fecha = fechaBitacoraSeleccionada();
+  try {
+    await html2pdf().set({margin:5,filename:`Lista_Asistencia_AFAC_${fecha}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},pagebreak:{mode:['css','legacy']}}).from(copia).save();
+    mostrarMensaje('Lista de asistencia exportada.');
+  } catch (e) { console.error(e); mostrarMensaje('No se pudo generar el PDF: '+e.message,'error'); }
 }
 
 function actualizarTodoAdmin() {
