@@ -570,6 +570,12 @@
             <button type="button" class="btn-secondary" id="btnCerrarCamaraTrabajador" onclick="detenerEscanerTrabajador()" disabled>Detener cámara</button>
           </div>
           <div id="lectorQRTrabajador" style="width:100%;border-radius:16px;overflow:hidden"></div>
+          <div style="margin:12px 0;padding:14px;border:1px solid var(--border-color);border-radius:14px;background:var(--afac-bg)">
+            <label for="archivoQRTrabajador" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px">¿Tu QR está en este mismo teléfono? Selecciona una imagen de tu credencial:</label>
+            <input type="file" id="archivoQRTrabajador" accept="image/*" style="width:100%;max-width:100%;font-size:12px" onchange="leerImagenQRTrabajador(this)">
+            <div style="margin-top:12px"><button type="button" class="btn-secondary" onclick="registrarMiCredencialVisible()">Registrar con mi credencial visible</button></div>
+            <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0">La opción de credencial visible registra tu propia cuenta. Úsala solo en pruebas: no verifica presencia física.</p>
+          </div>
           <div id="estadoQRTrabajador" role="status" aria-live="polite" style="margin-top:12px;padding:12px;border-radius:12px;background:var(--afac-bg);border:1px solid var(--border-color);font-size:13px">Pulsa «Abrir escáner» y concede permiso para usar la cámara.</div>
           <p style="font-size:11px;color:var(--text-muted);margin-top:10px">El QR debe corresponder a tu propia cuenta. La cámara requiere HTTPS y permiso del navegador.</p>
         </div>
@@ -934,7 +940,10 @@ function controlesEscanerTrabajador(activo) {
   if (cerrar) cerrar.disabled = !activo;
 }
 function iniciarEscanerTrabajador() {
-  if (sesionActual?.rol !== 'trabajador' || !auth.currentUser) return;
+  if (sesionActual?.rol !== 'trabajador' || !auth.currentUser) {
+    estadoEscanerTrabajador('Inicia sesión como trabajador antes de abrir el escáner.');
+    return;
+  }
   escanerTrabajadorActivo = true;
   controlesEscanerTrabajador(true);
   estadoEscanerTrabajador('Solicitando acceso a la cámara…');
@@ -945,15 +954,25 @@ function iniciarEscanerTrabajador() {
     if (!lectorQRTrabajador) lectorQRTrabajador = new Html5Qrcode('lectorQRTrabajador');
     const st = lectorQRTrabajador.getState();
     if (st !== 2 && st !== 3) {
-      await lectorQRTrabajador.start({facingMode:'environment'}, {fps:8,qrbox:{width:220,height:220}}, codigo=>registrarMiQR(codigo.trim()), ()=>{});
+      await lectorQRTrabajador.start(
+        {facingMode:'environment'},
+        {fps:10,qrbox:{width:230,height:230}},
+        texto => {
+          if (!registroTrabajadorEnProceso) {
+            estadoEscanerTrabajador('QR detectado. Verificando credencial…');
+            registrarMiQR(String(texto).trim());
+          }
+        },
+        () => {}
+      );
     }
     if (!escanerTrabajadorActivo) await pararLectorTrabajador();
-    else estadoEscanerTrabajador('Cámara activa. Coloca tu QR dentro del recuadro.');
+    else estadoEscanerTrabajador('Cámara activa. Coloca el QR de tu credencial en el recuadro.');
   }).catch(err=>{
     console.error('Escáner del trabajador:',err);
     escanerTrabajadorActivo=false;
     controlesEscanerTrabajador(false);
-    estadoEscanerTrabajador('No se pudo abrir la cámara: '+(err.message||err)+'. Comprueba el permiso del navegador.');
+    estadoEscanerTrabajador('No se pudo abrir la cámara: '+(err.message||err));
   });
 }
 async function pararLectorTrabajador() {
@@ -968,16 +987,45 @@ function detenerEscanerTrabajador() {
   estadoEscanerTrabajador('Cámara detenida.');
   return operacionEscanerTrabajador;
 }
+async function leerImagenQRTrabajador(input) {
+  const archivo=input.files && input.files[0];
+  if (!archivo) return;
+  try {
+    if (typeof Html5Qrcode === 'undefined') throw Error('No se cargó el lector de códigos QR.');
+    await detenerEscanerTrabajador();
+    estadoEscanerTrabajador('Leyendo QR de la imagen…');
+    if (lectorQRTrabajador) { try { await lectorQRTrabajador.clear(); } catch(_) {} lectorQRTrabajador=null; }
+    const lectorImagen=new Html5Qrcode('lectorQRTrabajador');
+    const codigo=await lectorImagen.scanFile(archivo,true);
+    await lectorImagen.clear();
+    await registrarMiQR(String(codigo).trim());
+  } catch(err) {
+    console.error('Lectura de QR desde imagen:',err);
+    estadoEscanerTrabajador('No se pudo leer el QR de la imagen: '+(err.message||err));
+  } finally { input.value=''; }
+}
+async function registrarMiCredencialVisible() {
+  if (!auth.currentUser || sesionActual?.rol!=='trabajador') {
+    estadoEscanerTrabajador('Inicia sesión como trabajador.');return;
+  }
+  const usuario=usuarios.find(u=>u.uid===auth.currentUser.uid || u._docId===auth.currentUser.uid);
+  if (!usuario) { estadoEscanerTrabajador('No se encontró tu perfil.');return; }
+  await registrarMiQR(String(usuario.id));
+}
 async function registrarMiQR(codigo) {
-  if (registroTrabajadorEnProceso || sesionActual?.rol!=='trabajador' || !auth.currentUser) return;
+  if (registroTrabajadorEnProceso) return;
+  if (sesionActual?.rol!=='trabajador' || !auth.currentUser) {
+    estadoEscanerTrabajador('La sesión del trabajador no está activa.');return;
+  }
   const uid=auth.currentUser.uid;
   const usuario=usuarios.find(u=>u.uid===uid || u._docId===uid);
-  if (!usuario || codigo!==String(usuario.id)) {
-    estadoEscanerTrabajador('El QR escaneado no corresponde a tu credencial.');
+  if (!usuario) {estadoEscanerTrabajador('No se encontró el perfil del trabajador en Firebase.');return;}
+  if (codigo !== String(usuario.id).trim()) {
+    estadoEscanerTrabajador('El QR leído ('+codigo.slice(0,45)+') no coincide con tu folio ('+usuario.id+').');
     return;
   }
   registroTrabajadorEnProceso=true;
-  estadoEscanerTrabajador('QR reconocido. Guardando asistencia…');
+  estadoEscanerTrabajador('QR reconocido. Guardando asistencia en Firebase…');
   try {
     const ahora=new Date();
     const fecha=[ahora.getFullYear(),String(ahora.getMonth()+1).padStart(2,'0'),String(ahora.getDate()).padStart(2,'0')].join('-');
@@ -992,15 +1040,23 @@ async function registrarMiQR(codigo) {
       } else if (doc.data().usuarioUid===uid && doc.data().salida==='-') {
         movimiento='Salida';
         tx.update(ref,{salida:hora,estatus:'Completado'});
-      } else throw Error('Ya registraste entrada y salida hoy.');
+      } else throw Error('La entrada y salida de hoy ya están registradas.');
     });
-    estadoEscanerTrabajador(movimiento+' registrada correctamente a las '+hora+'.');
-    await detenerEscanerTrabajador();
-    estadoEscanerTrabajador(movimiento+' registrada correctamente a las '+hora+'.');
+    const confirmacion=await ref.get({source:'server'});
+    if (!confirmacion.exists) throw Error('Firebase no confirmó el registro de asistencia.');
+    const datos=confirmacion.data();
+    if (movimiento==='Entrada' && datos.entrada!==hora) throw Error('Firebase no confirmó la hora de entrada.');
+    if (movimiento==='Salida' && datos.salida!==hora) throw Error('Firebase no confirmó la hora de salida.');
+    if (escanerTrabajadorActivo) await detenerEscanerTrabajador();
+    estadoEscanerTrabajador('✓ '+movimiento+' registrada y confirmada en Firebase a las '+hora+'.');
+    mostrarMensaje(movimiento+' registrada correctamente.','success');
   } catch(err) {
-    console.error('Registro QR trabajador:',err);
-    estadoEscanerTrabajador(err.code==='permission-denied'?'Firestore bloqueó el registro. Publica las reglas de asistencia para trabajadores.':(err.message||'No se pudo registrar la asistencia.'));
-  } finally {registroTrabajadorEnProceso=false;}
+    console.error('Error guardando asistencia QR:',err);
+    const detalle=err.code==='permission-denied'
+      ? 'Permiso denegado por Firestore. Revisa las reglas publicadas de asistencias.'
+      : (err.code==='unavailable' ? 'Sin conexión con Firebase. Verifica internet.' : (err.message||String(err)));
+    estadoEscanerTrabajador('No se guardó la asistencia: '+detalle);
+  } finally { registroTrabajadorEnProceso=false; }
 }
 
 function renderizarTablaBitacora() {
