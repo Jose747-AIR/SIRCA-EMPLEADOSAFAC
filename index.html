@@ -106,10 +106,10 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
     .nav-tabs {
-      max-width: 1440px; margin: auto; padding: 0 25px; display: flex; gap: 15px;
+      max-width: 1440px; margin: auto; padding: 0 25px; display: flex; gap: 15px; flex-wrap: wrap;
     }
     .tab-btn {
-      background: transparent; border: none; padding: 16px 24px; font-weight: 700; font-size: 14px;
+      background: transparent; border: none; padding: 16px 20px; font-weight: 700; font-size: 14px;
       color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;
       display: flex; align-items: center; gap: 8px;
     }
@@ -301,6 +301,8 @@
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="cambiarVistaAdmin('control')">📊 Control y Operaciones</button>
       <button class="tab-btn" onclick="cambiarVistaAdmin('rolfi')">🗓️ Módulo ROLFI (Por Semana)</button>
+      <button class="tab-btn" onclick="cambiarVistaAdmin('escaner')">📷 Escáner QR de Asistencia</button>
+      <button class="tab-btn" onclick="cambiarVistaAdmin('bitacora')">📋 Hoja de Firma Semanal</button>
     </div>
   </div>
 
@@ -421,6 +423,51 @@
             <table id="tablaRolfiExcel">
               <thead id="rolfiThead"></thead>
               <tbody id="rolfiBodyRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA ESCÁNER QR DE ASISTENCIA -->
+      <div id="vistaEscaner" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>📷 Escáner QR de Asistencia (Entrada y Salida)</h2>
+          </div>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">
+            Utiliza la cámara para escanear la credencial QR del trabajador. El sistema registrará automáticamente su <strong>Entrada</strong> o <strong>Salida</strong> en la hoja semanal según corresponda.
+          </p>
+          <div style="max-width: 500px; margin: 0 auto; text-align: center;">
+            <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--border-color);"></div>
+            <div id="resultadoEscaneoBox" style="margin-top: 20px; padding: 16px; border-radius: 12px; background: var(--afac-bg); border: 1px solid var(--border-color); font-weight: 700; font-size: 14px; display: none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA HOJA DE FIRMA SEMANAL -->
+      <div id="vistaBitacora" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>📋 Hoja Semanal de Firma de Entrada y Salida</h2>
+            <button class="btn-danger" onclick="exportarBitacoraPDF()">📥 Descargar Hoja de Firma PDF</button>
+          </div>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">
+            Registro detallado de las horas exactas de entrada y salida capturadas mediante el escaneo de códigos QR durante la semana en curso.
+          </p>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Trabajador</th>
+                  <th>Fecha</th>
+                  <th>Hora de Entrada (QR)</th>
+                  <th>Hora de Salida (QR)</th>
+                  <th>Estatus Diario</th>
+                </tr>
+              </thead>
+              <tbody id="tablaBitacoraAsistencia">
+                <tr><td colspan="5" class="empty">No hay registros de entradas o salidas escaneadas aún.</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
@@ -570,6 +617,7 @@
 <script>
 let usuarios = []; 
 let solicitudes = [];
+let registroBitacora = []; // Almacena los registros de entrada y salida por QR
 let totalBajasContador = 0;
 let usuarioSeleccionadoID = null;
 let sesionActual = null; 
@@ -577,6 +625,7 @@ let sesionActual = null;
 let semanasGlobalKeys = [];
 let semanasGlobalMap = {};
 let indiceSemanaActual = 0;
+let html5QrCodeScanner = null;
 
 const diasFestivosOficiales = [
   "2026-09-16", "2026-11-16", "2026-12-25", 
@@ -596,6 +645,7 @@ const tiposDeIncidenciasSoportadas = [
 function guardarDatosEnStorage() {
   localStorage.setItem("sirca_usuarios", JSON.stringify(usuarios));
   localStorage.setItem("sirca_solicitudes", JSON.stringify(solicitudes));
+  localStorage.setItem("sirca_bitacora", JSON.stringify(registroBitacora));
   localStorage.setItem("sirca_bajas", totalBajasContador);
   localStorage.setItem("sirca_sesion", JSON.stringify(sesionActual));
 }
@@ -603,11 +653,13 @@ function guardarDatosEnStorage() {
 function cargarDatosDeStorage() {
   const guardadoUsuarios = localStorage.getItem("sirca_usuarios");
   const guardadoSolicitudes = localStorage.getItem("sirca_solicitudes");
+  const guardadoBitacora = localStorage.getItem("sirca_bitacora");
   const guardadoBajas = localStorage.getItem("sirca_bajas");
   const guardadoSesion = localStorage.getItem("sirca_sesion");
 
   if (guardadoUsuarios) usuarios = JSON.parse(guardadoUsuarios);
   if (guardadoSolicitudes) solicitudes = JSON.parse(guardadoSolicitudes);
+  if (guardadoBitacora) registroBitacora = JSON.parse(guardadoBitacora);
   if (guardadoBajas) totalBajasContador = parseInt(guardadoBajas, 10);
   if (guardadoSesion) sesionActual = JSON.parse(guardadoSesion);
 }
@@ -648,6 +700,7 @@ function mostrarPantallaLogin() {
   document.getElementById("panelAdminWrapper").classList.add("hidden");
   document.getElementById("panelTrabajadorIndividual").classList.add("hidden");
   document.getElementById("btnCerrarSesion").classList.add("hidden");
+  detenerEscanerQR();
 }
 
 function ejecutarLogin(e) {
@@ -681,6 +734,7 @@ function cerrarSesion() {
   localStorage.removeItem("sirca_sesion");
   document.getElementById("loginCorreo").value = "";
   document.getElementById("loginPassword").value = "";
+  detenerEscanerQR();
   mostrarPantallaLogin();
   mostrarMensaje("Sesión cerrada correctamente.");
 }
@@ -706,23 +760,208 @@ function iniciarVistaTrabajador(idTrabajador) {
 }
 
 function cambiarVistaAdmin(vista) {
-  const btnControl = document.querySelectorAll('.tab-btn')[0];
-  const btnRolfi = document.querySelectorAll('.tab-btn')[1];
+  const botones = document.querySelectorAll('.nav-tabs .tab-btn');
+  botones.forEach(b => b.classList.remove('active'));
+
   const divControl = document.getElementById('vistaControl');
   const divRolfi = document.getElementById('vistaRolfi');
+  const divEscaner = document.getElementById('vistaEscaner');
+  const divBitacora = document.getElementById('vistaBitacora');
+
+  divControl.classList.add('hidden');
+  divRolfi.classList.add('hidden');
+  divEscaner.classList.add('hidden');
+  divBitacora.classList.add('hidden');
+
+  detenerEscanerQR();
 
   if (vista === 'control') {
-    btnControl.classList.add('active');
-    btnRolfi.classList.remove('active');
+    botones[0].classList.add('active');
     divControl.classList.remove('hidden');
-    divRolfi.classList.add('hidden');
-  } else {
-    btnRolfi.classList.add('active');
-    btnControl.classList.remove('active');
+  } else if (vista === 'rolfi') {
+    botones[1].classList.add('active');
     divRolfi.classList.remove('hidden');
-    divControl.classList.add('hidden');
     renderizarCalendarioRolfi();
+  } else if (vista === 'escaner') {
+    botones[2].classList.add('active');
+    divEscaner.classList.remove('hidden');
+    iniciarEscanerQR();
+  } else if (vista === 'bitacora') {
+    botones[3].classList.add('active');
+    divBitacora.classList.remove('hidden');
+    renderizarTablaBitacora();
   }
+}
+
+function iniciarEscanerQR() {
+  const box = document.getElementById("resultadoEscaneoBox");
+  box.style.display = "none";
+
+  if (!html5QrCodeScanner) {
+    html5QrCodeScanner = new Html5Qrcode("reader");
+  }
+
+  html5QrCodeScanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    (decodedText) => {
+      procesarLecturaQR(decodedText.trim());
+    },
+    (errorMessage) => {
+      // Ignorar errores de escaneo continuo mientras busca código
+    }
+  ).catch(err => {
+    console.error("Error al iniciar la cámara: ", err);
+    box.style.display = "block";
+    box.innerHTML = `<span style="color:#DC2626;">❌ No se pudo acceder a la cámara. Verifica permisos.</span>`;
+  });
+}
+
+function detenerEscanerQR() {
+  if (html5QrCodeScanner) {
+    html5QrCodeScanner.stop().catch(() => {});
+  }
+}
+
+function procesarLecturaQR(qrID) {
+  const trabajador = usuarios.find(u => u.id === qrID);
+  const box = document.getElementById("resultadoEscaneoBox");
+  box.style.display = "block";
+
+  if (!trabajador) {
+    box.innerHTML = `<span style="color:#DC2626;">❌ Código QR no reconocido en el sistema: ${qrID}</span>`;
+    return;
+  }
+
+  const hoyFechaStr = new Date().toISOString().split('T')[0];
+  const horaActualStr = new Date().toLocaleTimeString();
+
+  // Buscar si ya tiene registro el día de hoy
+  let registroHoy = registroBitacora.find(r => r.usuarioId === trabajador.id && r.fecha === hoyFechaStr);
+
+  if (!registroHoy) {
+    // Registrar ENTRADA
+    registroHoy = {
+      id: "BIT-" + Math.floor(Math.random() * 90000 + 10000),
+      usuarioId: trabajador.id,
+      nombre: trabajador.nombre,
+      fecha: hoyFechaStr,
+      entrada: horaActualStr,
+      salida: "-",
+      estatus: "En Turno"
+    };
+    registroBitacora.push(registroHoy);
+    trabajador.dentro = true;
+    box.innerHTML = `<span style="color:#16A34A;">✅ ENTRADA Registrada: ${trabajador.nombre} a las ${horaActualStr}</span>`;
+  } else if (registroHoy.salida === "-") {
+    // Registrar SALIDA
+    registroHoy.salida = horaActualStr;
+    registroHoy.estatus = "Completado";
+    trabajador.dentro = false;
+    box.innerHTML = `<span style="color:#D97706;">⏱️ SALIDA Registrada: ${trabajador.nombre} a las ${horaActualStr}</span>`;
+  } else {
+    box.innerHTML = `<span style="color:#691C32;">ℹ️ El trabajador ${trabajador.nombre} ya completó su entrada y salida el día de hoy.</span>`;
+  }
+
+  guardarDatosEnStorage();
+  actualizarTodoAdmin();
+}
+
+function renderizarTablaBitacora() {
+  const tbody = document.getElementById("tablaBitacoraAsistencia");
+  if (!registroBitacora.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay registros de entradas o salidas escaneadas aún.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = registroBitacora.map(r => `
+    <tr>
+      <td><strong>${r.nombre}</strong><br><small>${r.usuarioId}</small></td>
+      <td>${r.fecha}</td>
+      <td><strong style="color:#16A34A;">${r.entrada}</strong></td>
+      <td><strong style="color:#D97706;">${r.salida}</strong></td>
+      <td><span class="status ${r.estatus === 'En Turno' ? 'status-dentro' : 'status-fuera'}">${r.estatus}</span></td>
+    </tr>
+  `).join("");
+}
+
+function exportarBitacoraPDF() {
+  mostrarMensaje("Generando hoja de firma semanal en PDF...");
+  const contenedorPDF = document.createElement("div");
+  contenedorPDF.style.padding = "20px";
+  contenedorPDF.style.background = "#FFFFFF";
+  contenedorPDF.style.color = "#0F172A";
+  contenedorPDF.style.fontFamily = "Montserrat, sans-serif";
+  contenedorPDF.style.fontSize = "11px";
+
+  let filasHTML = "";
+  if (!registroBitacora.length) {
+    filasHTML = `<tr><td colspan="5" style="text-align:center; padding:15px;">No hay registros de asistencia.</td></tr>`;
+  } else {
+    registroBitacora.forEach(r => {
+      filasHTML += `
+        <tr>
+          <td style="border: 1px solid #CBD5E1; padding: 8px;">${r.nombre} (${r.usuarioId})</td>
+          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">${r.fecha}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center; font-weight:700; color:#16A34A;">${r.entrada}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center; font-weight:700; color:#D97706;">${r.salida}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">${r.estatus}</td>
+        </tr>
+      `;
+    });
+  }
+
+  contenedorPDF.innerHTML = `
+    <div style="border-bottom: 3px solid #691C32; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h2 style="margin: 0; color: #691C32; font-size: 15px; text-transform: uppercase; font-weight: 800;">Agencia Federal de Aviación Civil</h2>
+        <p style="margin: 3px 0 0; font-size: 10px; color: #64748B; font-weight: 700;">Secretaría de Infraestructura, Comunicaciones y Transportes | Sistema SIRCA</p>
+      </div>
+      <div style="text-align: right;">
+        <span style="background: #691C32; color: white; padding: 5px 12px; border-radius: 6px; font-size: 10px; font-weight: 800;">Hoja Semanal de Firma</span>
+      </div>
+    </div>
+
+    <h3 style="text-align: center; color: #0F172A; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; font-weight: 700;">Registro de Control de Asistencia por Escaneo QR (Entrada y Salida)</h3>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+      <thead>
+        <tr style="background:#691C32; color:white;">
+          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:left;">Trabajador</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Fecha</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Hora Entrada</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Hora Salida</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Estatus</th>
+        </tr>
+      </thead>
+      <tbody>${filasHTML}</tbody>
+    </table>
+
+    <div style="margin-top: 40px; display: flex; justify-content: center; page-break-inside: avoid;">
+      <div style="width: 300px; text-align: center;">
+        <div style="border-bottom: 1px solid #0F172A; width: 280px; margin: 0 auto 8px auto; height: 35px;"></div>
+        <strong style="font-size: 11px; color: #0F172A; text-transform: uppercase; display: block;">Director General de la AFAC</strong>
+        <span style="font-size: 9px; color: #64748B; font-weight: 600;">Agencia Federal de Aviación Civil</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 8px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 8px;">
+      <span>Documento oficial validado por el Sistema Integral de Registro y Control de Asistencia (SIRCA)</span>
+      <span>Fecha de emisión: ${new Date().toLocaleDateString()}</span>
+    </div>
+  `;
+
+  const opciones = {
+    margin:       10,
+    filename:     `Hoja_Firma_Semanal_AFAC.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().from(contenedorPDF).set(opciones).save().then(() => {
+    mostrarMensaje("Hoja de firma semanal PDF exportada con éxito.");
+  });
 }
 
 function actualizarTodoAdmin() {
@@ -735,6 +974,7 @@ function actualizarTodoAdmin() {
   actualizarBandejaAdmin();
   if (usuarioSeleccionadoID) seleccionarUsuario(usuarioSeleccionadoID);
   renderizarCalendarioRolfi();
+  renderizarTablaBitacora();
 }
 
 function mostrarUsuarios() {
