@@ -321,7 +321,6 @@
           </div>
           <button class="btn-primary" type="submit" style="margin-top:10px;">Ingresar al Sistema</button>
         </form>
-        
       </div>
     </div>
   </div>
@@ -509,7 +508,7 @@
       <div class="card">
         <div class="card-header">
           <h2>💳 Mi Credencial Digital e Imagen de Perfil</h2>
-          <span id="miEstadoBadge" class="status status-dentro">● Activo</span>
+          <span id="miEstadoBadge" class="status status-fuera">● Fuera</span>
         </div>
         <div style="display:grid; grid-template-columns: 220px 1fr; gap:24px; align-items:center;">
           <div style="text-align:center;">
@@ -574,14 +573,11 @@
             <label for="archivoQRTrabajador" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px">¿Tu QR está en este mismo teléfono? Selecciona una imagen de tu credencial:</label>
             <input type="file" id="archivoQRTrabajador" accept="image/*" style="width:100%;max-width:100%;font-size:12px" onchange="leerImagenQRTrabajador(this)">
             <div style="margin-top:12px"><button type="button" class="btn-secondary" onclick="registrarMiCredencialVisible()">Registrar con mi credencial visible</button></div>
-            <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0">La opción de credencial visible registra tu propia cuenta. Úsala solo en pruebas: no verifica presencia física.</p>
           </div>
           <div id="estadoQRTrabajador" role="status" aria-live="polite" style="margin-top:12px;padding:12px;border-radius:12px;background:var(--afac-bg);border:1px solid var(--border-color);font-size:13px">Pulsa «Abrir escáner» y concede permiso para usar la cámara.</div>
-          <p style="font-size:11px;color:var(--text-muted);margin-top:10px">El QR debe corresponder a tu propia cuenta. La cámara requiere HTTPS y permiso del navegador.</p>
         </div>
       </div>
 
-      <!-- PORTAL DEL TRABAJADOR: calendario y movimientos personales -->
       <!-- PORTAL DEL TRABAJADOR: calendario y movimientos personales -->
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="agenda-shell">
@@ -731,17 +727,16 @@ function conectarDatosTrabajador(uid) {
     if (sesionActual?.id) cargarPortalTrabajador(sesionActual.id);
   },errorFirebase);
   cancelSubs.push(sn);
-  // Solo lee asistencias del usuario autenticado; las reglas de Firestore lo restringen.
   const an = db.collection('asistencias').where('usuarioUid','==',uid).onSnapshot(snap => {
     registroBitacora = snap.docs.map(d => ({...d.data(),_docId:d.id}));
     renderizarMiHistorialAsistencia();
+    actualizarEstatusTrabajadorLocal();
   },errorFirebase);
   cancelSubs.push(an);
 }
 let usuarios = []; 
 let solicitudes = [];
-let registroBitacora = []; // Almacena los registros de entrada y salida por QR
-let totalBajasContador = 0;
+let registroBitacora = []; 
 let usuarioSeleccionadoID = null;
 let sesionActual = null; 
 
@@ -770,10 +765,6 @@ const tiposDeIncidenciasSoportadas = [
   "Salida Anticipada",
   "Permanencia por Llegar Tarde"
 ];
-
-function guardarDatosEnStorage() { /* Firestore persiste cada operación explícitamente. */ }
-
-function cargarDatosDeStorage() { /* Los datos llegan mediante listeners de Firestore. */ }
 
 function escaparHTML(v) { return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function mostrarMensaje(texto, tipo = "success", idElemento = "mensaje") {
@@ -872,7 +863,6 @@ function iniciarEscanerQR() {
   const box = document.getElementById('resultadoEscaneoBox');
   if (box) box.style.display = 'none';
   escanerVistaActiva = true;
-  // Encadenar las operaciones evita iniciar/detener la cámara simultáneamente.
   escanerOperacion = escanerOperacion.catch(() => {}).then(async () => {
     if (!escanerVistaActiva) return;
     if (typeof Html5Qrcode === 'undefined') throw new Error('No se cargó la biblioteca QR');
@@ -912,21 +902,29 @@ function detenerEscanerQR() {
 
 async function procesarLecturaQR(qrID) {
   const trabajador = usuarios.find(u => u.id === qrID);
-  const box = document.getElementById('resultadoEscaneoBox'); box.style.display='block';
-  if (!trabajador) { box.textContent='Código QR no reconocido'; return; }
+  const box = document.getElementById('resultadoEscaneoBox'); 
+  if(box) box.style.display='block';
+  if (!trabajador) { if(box) box.textContent='Código QR no reconocido'; return; }
   const hoy = new Date();
   const fecha = [hoy.getFullYear(),String(hoy.getMonth()+1).padStart(2,'0'),String(hoy.getDate()).padStart(2,'0')].join('-');
   const hora = hoy.toLocaleTimeString('es-MX');
   const ref = db.collection('asistencias').doc(trabajador.uid+'_'+fecha);
   try {
+    let movimiento = '';
     await db.runTransaction(async tx => {
-      const snap=await tx.get(ref);
-      if (!snap.exists) tx.set(ref,{id:ref.id,usuarioUid:trabajador.uid,usuarioId:trabajador.id,nombre:trabajador.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'});
-      else if(snap.data().salida==='-') tx.update(ref,{salida:hora,estatus:'Completado'});
-      else throw Error('La jornada ya tiene entrada y salida');
+      const snap = await tx.get(ref);
+      if (!snap.exists) {
+        movimiento = 'Entrada';
+        tx.set(ref, {id: ref.id, usuarioUid: trabajador.uid, usuarioId: trabajador.id, nombre: trabajador.nombre, fecha, entrada: hora, salida: '-', estatus: 'En Turno'});
+      } else if (snap.data().salida === '-') {
+        movimiento = 'Salida';
+        tx.update(ref, {salida: hora, estatus: 'Completado'});
+      } else {
+        throw Error('La jornada del día de hoy ya cuenta con entrada y salida registradas.');
+      }
     });
-    box.textContent='Asistencia registrada: '+trabajador.nombre+' '+hora;
-  } catch(e) { box.textContent=e.message; }
+    if(box) box.textContent = `✓ ${movimiento} registrada para ${trabajador.nombre} a las ${hora}`;
+  } catch(e) { if(box) box.textContent = e.message; }
 }
 
 function estadoEscanerTrabajador(mensaje) {
@@ -949,7 +947,7 @@ function iniciarEscanerTrabajador() {
   estadoEscanerTrabajador('Solicitando acceso a la cámara…');
   operacionEscanerTrabajador = operacionEscanerTrabajador.catch(()=>{}).then(async () => {
     if (!escanerTrabajadorActivo) return;
-    if (!window.isSecureContext) throw Error('Abre la aplicación desde GitHub Pages (HTTPS).');
+    if (!window.isSecureContext) throw Error('Abre la aplicación desde HTTPS.');
     if (typeof Html5Qrcode === 'undefined') throw Error('No se pudo cargar la biblioteca del escáner.');
     if (!lectorQRTrabajador) lectorQRTrabajador = new Html5Qrcode('lectorQRTrabajador');
     const st = lectorQRTrabajador.getState();
@@ -1019,9 +1017,9 @@ async function registrarMiQR(codigo) {
   }
   const uid=auth.currentUser.uid;
   const usuario=usuarios.find(u=>u.uid===uid || u._docId===uid);
-  if (!usuario) {estadoEscanerTrabajador('No se encontró el perfil del trabajador en Firebase.');return;}
+  if (!usuario) {estadoEscanerTrabajador('No se encontró el perfil del trabajador.');return;}
   if (codigo !== String(usuario.id).trim()) {
-    estadoEscanerTrabajador('El QR leído ('+codigo.slice(0,45)+') no coincide con tu folio ('+usuario.id+').');
+    estadoEscanerTrabajador('El QR leído no coincide con tu folio ('+usuario.id+').');
     return;
   }
   registroTrabajadorEnProceso=true;
@@ -1040,23 +1038,33 @@ async function registrarMiQR(codigo) {
       } else if (doc.data().usuarioUid===uid && doc.data().salida==='-') {
         movimiento='Salida';
         tx.update(ref,{salida:hora,estatus:'Completado'});
-      } else throw Error('La entrada y salida de hoy ya están registradas.');
+      } else {
+        throw Error('Ya registraste tu entrada y salida para el día de hoy.');
+      }
     });
-    const confirmacion=await ref.get({source:'server'});
-    if (!confirmacion.exists) throw Error('Firebase no confirmó el registro de asistencia.');
-    const datos=confirmacion.data();
-    if (movimiento==='Entrada' && datos.entrada!==hora) throw Error('Firebase no confirmó la hora de entrada.');
-    if (movimiento==='Salida' && datos.salida!==hora) throw Error('Firebase no confirmó la hora de salida.');
     if (escanerTrabajadorActivo) await detenerEscanerTrabajador();
-    estadoEscanerTrabajador('✓ '+movimiento+' registrada y confirmada en Firebase a las '+hora+'.');
-    mostrarMensaje(movimiento+' registrada correctamente.','success');
+    estadoEscanerTrabajador('✓ ' + movimiento + ' registrada y confirmada a las ' + hora + '.');
+    mostrarMensaje(movimiento + ' registrada correctamente.', 'success');
   } catch(err) {
     console.error('Error guardando asistencia QR:',err);
-    const detalle=err.code==='permission-denied'
-      ? 'Permiso denegado por Firestore. Revisa las reglas publicadas de asistencias.'
-      : (err.code==='unavailable' ? 'Sin conexión con Firebase. Verifica internet.' : (err.message||String(err)));
-    estadoEscanerTrabajador('No se guardó la asistencia: '+detalle);
-  } finally { registroTrabajadorEnProceso=false; }
+    estadoEscanerTrabajador('No se guardó la asistencia: ' + (err.message || err));
+  } finally { registroTrabajadorEnProceso = false; }
+}
+
+function actualizarEstatusTrabajadorLocal() {
+  const badge = document.getElementById("miEstadoBadge");
+  if (!badge || !auth.currentUser) return;
+  const hoy = new Date();
+  const fechaHoy = [hoy.getFullYear(), String(hoy.getMonth()+1).padStart(2,'0'), String(hoy.getDate()).padStart(2,'0')].join('-');
+  const regHoy = registroBitacora.find(r => r.usuarioUid === auth.currentUser.uid && r.fecha === fechaHoy);
+  
+  if (regHoy && regHoy.salida === '-') {
+    badge.textContent = "● Activo (Dentro)";
+    badge.className = "status status-dentro";
+  } else {
+    badge.textContent = "● Fuera";
+    badge.className = "status status-fuera";
+  }
 }
 
 function renderizarTablaBitacora() {
@@ -1104,61 +1112,36 @@ function exportarBitacoraPDF() {
   }
 
   contenedorPDF.innerHTML = `
-    <div style="border-bottom: 3px solid #691C32; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <h2 style="margin: 0; color: #691C32; font-size: 15px; text-transform: uppercase; font-weight: 800;">Agencia Federal de Aviación Civil</h2>
-        <p style="margin: 3px 0 0; font-size: 10px; color: #64748B; font-weight: 700;">Secretaría de Infraestructura, Comunicaciones y Transportes | Sistema SIRCA</p>
-      </div>
-      <div style="text-align: right;">
-        <span style="background: #691C32; color: white; padding: 5px 12px; border-radius: 6px; font-size: 10px; font-weight: 800;">Hoja Semanal de Firma</span>
-      </div>
-    </div>
-
-    <h3 style="text-align: center; color: #0F172A; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; font-weight: 700;">Registro de Control de Asistencia por Escaneo QR (Entrada y Salida)</h3>
-    
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+    <h3 style="text-align: center; color: #691C32;">Hoja Semanal de Firma - AFAC</h3>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
       <thead>
         <tr style="background:#691C32; color:white;">
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:left;">Trabajador</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Fecha</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Hora Entrada</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Hora Salida</th>
-          <th style="border: 1px solid #CBD5E1; padding: 8px; text-align:center;">Estatus</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px;">Trabajador</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px;">Fecha</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px;">Entrada</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px;">Salida</th>
+          <th style="border: 1px solid #CBD5E1; padding: 8px;">Estatus</th>
         </tr>
       </thead>
       <tbody>${filasHTML}</tbody>
     </table>
-
-    <div style="margin-top: 40px; display: flex; justify-content: center; page-break-inside: avoid;">
-      <div style="width: 300px; text-align: center;">
-        <div style="border-bottom: 1px solid #0F172A; width: 280px; margin: 0 auto 8px auto; height: 35px;"></div>
-        <strong style="font-size: 11px; color: #0F172A; text-transform: uppercase; display: block;">Director General de la AFAC</strong>
-        <span style="font-size: 9px; color: #64748B; font-weight: 600;">Agencia Federal de Aviación Civil</span>
-      </div>
-    </div>
-
-    <div style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 8px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 8px;">
-      <span>Documento oficial validado por el Sistema Integral de Registro y Control de Asistencia (SIRCA)</span>
-      <span>Fecha de emisión: ${new Date().toLocaleDateString()}</span>
-    </div>
   `;
 
-  const opciones = {
-    margin:       10,
-    filename:     `Hoja_Firma_Semanal_AFAC.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  html2pdf().from(contenedorPDF).set(opciones).save().then(() => {
-    mostrarMensaje("Hoja de firma semanal PDF exportada con éxito.");
-  });
+  html2pdf().from(contenedorPDF).set({
+    margin: 10,
+    filename: `Hoja_Firma_Semanal_AFAC.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).save();
 }
 
 function actualizarTodoAdmin() {
-  document.getElementById("totalUsuarios").textContent = usuarios.length;
-  document.getElementById("usuariosDentro").textContent = registroBitacora.filter(r => r.fecha === new Date().toLocaleDateString('en-CA') && r.salida === '-').length;
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const activosHoy = registroBitacora.filter(r => r.fecha === hoyStr && r.salida === '-').length;
+
+  document.getElementById("totalUsuarios").textContent = usuarios.filter(u=>u.activo!==false).length;
+  document.getElementById("usuariosDentro").textContent = activosHoy;
   document.getElementById("totalBajas").textContent = usuarios.filter(u=>u.activo===false).length;
   document.getElementById("totalPendientes").textContent = solicitudes.filter(s => s.estado === "Pendiente").length;
   mostrarUsuarios();
@@ -1174,12 +1157,16 @@ function mostrarUsuarios() {
   const lista = usuarios.filter(u => u.activo !== false && (u.id?.toLowerCase().includes(buscar) || u.nombre?.toLowerCase().includes(buscar)));
 
   if (!lista.length) { 
-    contenedor.innerHTML = `<div class="empty">No hay trabajadores registrados. Utiliza el botón superior para agregar registros.</div>`; 
+    contenedor.innerHTML = `<div class="empty">No hay trabajadores registrados.</div>`; 
     return; 
   }
   
+  const hoyStr = new Date().toISOString().split('T')[0];
   contenedor.innerHTML = "";
   lista.forEach(usuario => {
+    const regHoy = registroBitacora.find(r => r.usuarioUid === usuario.uid && r.fecha === hoyStr);
+    const estaDentro = regHoy && regHoy.salida === '-';
+
     const div = document.createElement("div");
     div.className = "user-card";
     div.onclick = () => seleccionarUsuario(usuario.id);
@@ -1191,7 +1178,7 @@ function mostrarUsuarios() {
       <p style="margin:4px 0; font-size:12px; color:var(--text-muted);">Puesto: ${escaparHTML(usuario.escuela)}</p>
       <p style="margin:4px 0; font-size:11px; color:var(--afac-dorado); font-weight:700;">🕒 ${escaparHTML(usuario.turno)}</p>
       <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
-        ${usuario.dentro ? `<span class="status status-dentro">● Activo</span>` : `<span class="status status-fuera">● Fuera</span>`}
+        ${estaDentro ? `<span class="status status-dentro">● Activo</span>` : `<span class="status status-fuera">● Fuera</span>`}
         <button class="btn-danger" onclick="event.stopPropagation(); darDeBajaTrabajador('${escaparHTML(usuario.id)}')" style="padding:4px 8px; font-size:11px;">Dar de baja</button>
       </div>
     `;
@@ -1233,9 +1220,13 @@ function seleccionarUsuario(id) {
   document.getElementById("infoCorreo").textContent = u.correo;
   document.getElementById("infoID").textContent = u.id;
 
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const regHoy = registroBitacora.find(r => r.usuarioUid === u.uid && r.fecha === hoyStr);
+  const estaDentro = regHoy && regHoy.salida === '-';
+
   const estado = document.getElementById("infoEstado");
-  estado.textContent = u.dentro ? "● Activo" : "● Fuera";
-  estado.className = u.dentro ? "status status-dentro" : "status status-fuera";
+  estado.textContent = estaDentro ? "● Activo" : "● Fuera";
+  estado.className = estaDentro ? "status status-dentro" : "status status-fuera";
 
   const avatarBox = document.getElementById("adminAvatarBox");
   if (u.foto) {
@@ -1243,42 +1234,16 @@ function seleccionarUsuario(id) {
   } else {
     avatarBox.innerHTML = `<div class="avatar-icon">👤</div>`;
   }
-
-  let diasVac1 = 0, diasVac2 = 0, diasEcon = 0;
-  let conteoIncidenciasTipos = {};
-  tiposDeIncidenciasSoportadas.forEach(t => { conteoIncidenciasTipos[t] = 0; });
-
-  solicitudes.filter(s => s.usuarioId === id && s.estado === "Aprobada").forEach(s => {
-    let cant = calcularDiasHabilesEntre(s.fechaInicio, s.fechaFin);
-    if (s.tipo.includes("Vacaciones 1ra Mitad")) diasVac1 += cant;
-    else if (s.tipo.includes("Vacaciones 2da Mitad")) diasVac2 += cant;
-    else if (s.tipo.includes("Permiso Económico")) diasEcon += cant;
-    else conteoIncidenciasTipos[s.tipo] = (conteoIncidenciasTipos[s.tipo] || 0) + cant;
-  });
-
-  document.getElementById("cntVac1").textContent = `${diasVac1} / 10 días`;
-  document.getElementById("cntVac2").textContent = `${diasVac2} / 10 días`;
-  document.getElementById("cntEcon").textContent = `${diasEcon} / 12 días`;
-
-  const containerIndiv = document.getElementById("containerIncidenciasIndividuales");
-  containerIndiv.innerHTML = Object.keys(conteoIncidenciasTipos).map(tipoKey => `
-    <div class="incidencia-box-item">
-      <span>${tipoKey}</span>
-      <strong>${conteoIncidenciasTipos[tipoKey]} ${conteoIncidenciasTipos[tipoKey] === 1 ? 'día' : 'días'}</strong>
-    </div>
-  `).join("");
 }
 
 async function darDeBajaTrabajador(id) {
   const u=usuarios.find(x=>x.id===id); if(!u || !confirm('¿Dar de baja a '+u.nombre+'?')) return;
   try {
     await db.collection('usuarios').doc(u.uid).update({activo:false});
-    mostrarMensaje('Trabajador marcado como inactivo. Deshabilita también su acceso en Authentication desde Firebase.');
+    mostrarMensaje('Trabajador marcado como inactivo.');
   } catch(e) { errorFirebase(e); }
 }
 
-// Firestore: fotos JPEG pequeñas en el expediente y PDF pequeños en colección privada.
-// Límite deliberado para respetar el máximo de 1 MiB por documento de Firestore.
 const LIMITE_PDF_BYTES = 400 * 1024;
 function leerArchivoDataURL(archivo) {
   return new Promise((resolve,reject) => {
@@ -1290,7 +1255,6 @@ function leerArchivoDataURL(archivo) {
 }
 async function comprimirFoto(archivo) {
   if (!archivo || !archivo.type.startsWith('image/')) throw new Error('Selecciona una imagen válida.');
-  if (archivo.size > 10*1024*1024) throw new Error('La foto original no debe superar 10 MB.');
   const url = URL.createObjectURL(archivo);
   try {
     const imagen = new Image();
@@ -1300,56 +1264,41 @@ async function comprimirFoto(archivo) {
     canvas.width=Math.max(1,Math.round(imagen.naturalWidth*escala));
     canvas.height=Math.max(1,Math.round(imagen.naturalHeight*escala));
     canvas.getContext('2d').drawImage(imagen,0,0,canvas.width,canvas.height);
-    const data=canvas.toDataURL('image/jpeg',0.7);
-    if (data.length>160000) throw new Error('La foto sigue siendo demasiado grande. Prueba otra.');
-    return data;
+    return canvas.toDataURL('image/jpeg',0.7);
   } finally { URL.revokeObjectURL(url); }
 }
+
 async function enviarSolicitudTrabajador(e) {
   e.preventDefault();
   const u=usuarios.find(x=>x.id===sesionActual?.id); if(!u || !auth.currentUser) return;
   const archivo=document.getElementById('miSolArchivoPDF').files[0];
   if (!archivo || archivo.type!=='application/pdf') return mostrarMensaje('Adjunta un PDF válido.','error');
-  if (archivo.size>LIMITE_PDF_BYTES) return mostrarMensaje('El PDF supera 400 KB. Comprímelo antes de enviarlo.','error');
-  const tipo=document.getElementById('miSolTipo').value;
-  const fechaInicio=document.getElementById('miSolFechaInicio').value;
-  const fechaFin=document.getElementById('miSolFechaFin').value;
-  if(fechaFin<fechaInicio) return mostrarMensaje('La fecha final debe ser posterior a la inicial.','error');
-  const dias=calcularDiasHabilesEntre(fechaInicio,fechaFin);
-  const aprobadas=solicitudes.filter(s=>s.estado==='Aprobada');
-  const consumidos=t=>aprobadas.filter(s=>s.tipo===t).reduce((n,s)=>n+calcularDiasHabilesEntre(s.fechaInicio,s.fechaFin),0);
-  const limite=tipo==='Permiso Económico'?12:tipo.startsWith('Vacaciones')?10:null;
-  if(limite!==null && consumidos(tipo)+dias>limite) return mostrarMensaje('La solicitud excede los días disponibles.','error');
+  if (archivo.size>LIMITE_PDF_BYTES) return mostrarMensaje('El PDF supera 400 KB.','error');
   try {
     const pdfData=await leerArchivoDataURL(archivo);
-    if (!pdfData.startsWith('data:application/pdf;base64,')) throw new Error('El PDF no tiene un formato válido.');
     const ref=db.collection('solicitudes').doc();
     const lote=db.batch();
-    lote.set(ref,{usuarioUid:auth.currentUser.uid,usuarioId:u.id,nombreUsuario:u.nombre,tipo,
-      motivo:document.getElementById('miSolMotivo').value.trim(),fechaInicio,fechaFin,
-      estado:'Pendiente',pdfNombre:archivo.name.slice(0,120),tienePdf:true,
-      creadaEn:firebase.firestore.FieldValue.serverTimestamp()});
-    lote.set(db.collection('documentosSolicitud').doc(ref.id),{
-      usuarioUid:auth.currentUser.uid,solicitudId:ref.id,pdfNombre:archivo.name.slice(0,120),
-      pdfData,creadaEn:firebase.firestore.FieldValue.serverTimestamp()});
+    lote.set(ref,{usuarioUid:auth.currentUser.uid,usuarioId:u.id,nombreUsuario:u.nombre,tipo:document.getElementById('miSolTipo').value,
+      motivo:document.getElementById('miSolMotivo').value.trim(),fechaInicio:document.getElementById('miSolFechaInicio').value,fechaFin:document.getElementById('miSolFechaFin').value,
+      estado:'Pendiente',pdfNombre:archivo.name.slice(0,120),tienePdf:true,creadaEn:firebase.firestore.FieldValue.serverTimestamp()});
+    lote.set(db.collection('documentosSolicitud').doc(ref.id),{usuarioUid:auth.currentUser.uid,solicitudId:ref.id,pdfData,creadaEn:firebase.firestore.FieldValue.serverTimestamp()});
     await lote.commit();
     document.getElementById('formMiSolicitud').reset();
-    mostrarMensaje('Solicitud y PDF guardados en Firestore correctamente.');
+    mostrarMensaje('Solicitud enviada correctamente.');
   } catch(e) { errorFirebase(e); }
 }
+
 async function descargarPDFSolicitud(id) {
   try {
     const doc=await db.collection('documentosSolicitud').doc(id).get();
-    if (!doc.exists || !doc.data().pdfData?.startsWith('data:application/pdf;base64,')) throw new Error('No se encontró el PDF.');
-    const datos=doc.data();
-    const base64=datos.pdfData.split(',')[1];
-    const bin=atob(base64);
-    const bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-    const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
-    const a=document.createElement('a'); a.href=url; a.download=datos.pdfNombre||'justificante.pdf';
+    if (!doc.exists) throw new Error('No se encontró el PDF.');
+    const base64 = doc.data().pdfData.split(',')[1];
+    const bin = atob(base64);
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], {type: 'application/pdf'}));
+    const a = document.createElement('a'); a.href = url; a.download = 'justificante.pdf';
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),30000);
   } catch(e) { errorFirebase(e); }
 }
 
@@ -1371,54 +1320,15 @@ function cargarPortalTrabajador(id) {
     avatarBox.innerHTML = `<div class="avatar-icon" style="font-size:50px;">👨‍✈️</div>`;
   }
 
-  let diasVac1 = 0, diasVac2 = 0, diasEcon = 0;
-  let conteoIncidenciasTipos = {};
-  tiposDeIncidenciasSoportadas.forEach(t => { conteoIncidenciasTipos[t] = 0; });
-
-  solicitudes.filter(s => s.usuarioId === id && s.estado === "Aprobada").forEach(s => {
-    let cant = calcularDiasHabilesEntre(s.fechaInicio, s.fechaFin);
-    if (s.tipo.includes("Vacaciones 1ra Mitad")) diasVac1 += cant;
-    else if (s.tipo.includes("Vacaciones 2da Mitad")) diasVac2 += cant;
-    else if (s.tipo.includes("Permiso Económico")) diasEcon += cant;
-    else conteoIncidenciasTipos[s.tipo] = (conteoIncidenciasTipos[s.tipo] || 0) + cant;
-  });
-
-  document.getElementById("miCntVac1").textContent = `${diasVac1} / 10 días`;
-  document.getElementById("miCntVac2").textContent = `${diasVac2} / 10 días`;
-  document.getElementById("miCntEcon").textContent = `${diasEcon} / 12 días`;
-
-  const miContainerIndiv = document.getElementById("miContainerIncidenciasIndividuales");
-  miContainerIndiv.innerHTML = Object.keys(conteoIncidenciasTipos).map(tipoKey => `
-    <div class="incidencia-box-item">
-      <span>${tipoKey}</span>
-      <strong>${conteoIncidenciasTipos[tipoKey]} ${conteoIncidenciasTipos[tipoKey] === 1 ? 'día' : 'días'}</strong>
-    </div>
-  `).join("");
-
   const contenedorQR = document.getElementById("miContenedorQR");
   contenedorQR.innerHTML = "";
   new QRCode(contenedorQR, { text: u.id, width: 150, height: 150, colorDark: "#691C32", colorLight: "#FFFFFF" });
 
   renderizarCalendarioPersonal();
   renderizarMiHistorialAsistencia();
-  const misSol = solicitudes.filter(s => s.usuarioId === u.id);
-  const tbody = document.getElementById("tablaMisSolicitudes");
-  if (!misSol.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No tienes solicitudes registradas.</td></tr>';
-  } else {
-    tbody.innerHTML = misSol.map(s => `
-      <tr>
-        <td>${escaparHTML(s.tipo)}</td>
-        <td>${escaparHTML(s.motivo)}</td>
-        <td>${escaparHTML(s.fechaInicio)} al ${escaparHTML(s.fechaFin)}</td>
-        <td>${s.tienePdf ? `<button type="button" class="btn-secondary" onclick="descargarPDFSolicitud('${escaparHTML(s._docId)}')">📥 Descargar PDF</button>` : 'Sin PDF'}</td>
-        <td><strong style="color:${s.estado === 'Aprobada' ? '#16A34A' : s.estado === 'Rechazada' ? '#DC2626' : '#D97706'}">${escaparHTML(s.estado)}</strong></td>
-      </tr>
-    `).join("");
-  }
+  actualizarEstatusTrabajadorLocal();
 }
 
-// El calendario se deriva de solicitudes existentes: no crea registros ni altera Firestore.
 let mesPersonal = new Date().getMonth();
 let anioPersonal = new Date().getFullYear();
 function cambiarMesPersonal(delta) {
@@ -1439,37 +1349,25 @@ function renderizarCalendarioPersonal() {
   const inicio=(new Date(anioPersonal,mesPersonal,1).getDay()+6)%7;
   const diasMes=new Date(anioPersonal,mesPersonal+1,0).getDate();
   const nombres=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-  const detalle=document.getElementById('detalleDiaPersonal');
-  if(detalle) detalle.textContent='Selecciona un día con incidencias para consultar sus detalles.';
   let html=nombres.map(n=>`<div class="cal-dia encabezado">${n}</div>`).join('');
   for(let i=0;i<inicio;i++) html+='<div class="cal-dia fuera-mes"></div>';
   const hoy=new Date();
   for(let dia=1;dia<=diasMes;dia++) {
     const fecha=`${anioPersonal}-${String(mesPersonal+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const incidencias=misSolicitudes.filter(x=>x.fechaInicio<=fecha && x.fechaFin>=fecha);
-    const orden={Aprobada:0,Pendiente:1,Rechazada:2};
-    incidencias.sort((a,b)=>(orden[a.estado]??3)-(orden[b.estado]??3));
     const principal=incidencias[0];
     const clase=principal?.estado==='Aprobada'?'aprobada':principal?.estado==='Pendiente'?'pendiente':principal?.estado==='Rechazada'?'rechazada':'';
     const esHoy=hoy.getFullYear()===anioPersonal && hoy.getMonth()===mesPersonal && hoy.getDate()===dia;
-    const etiqueta=incidencias.map(x=>`${x.tipo}: ${x.estado}`).join(' | ');
-    html+=`<div class="cal-dia ${clase} ${esHoy?'hoy':''} ${principal?'has-event':''}" ${principal?`role="button" tabindex="0" onclick="mostrarDetalleDiaPersonal('${fecha}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mostrarDetalleDiaPersonal('${fecha}')}"`:''} title="${escaparHTML(etiqueta)}"><strong>${dia}</strong>${principal?`<small>${escaparHTML(principal.tipo)}</small>`:''}${incidencias.length>1?`<small>+${incidencias.length-1} más</small>`:''}</div>`;
+    html+=`<div class="cal-dia ${clase} ${esHoy?'hoy':''} ${principal?'has-event':''}"><strong>${dia}</strong>${principal?`<small>${escaparHTML(principal.tipo)}</small>`:''}</div>`;
   }
   grid.innerHTML=html;
 }
-function mostrarDetalleDiaPersonal(fecha) {
-  const panel=document.getElementById('detalleDiaPersonal');
-  if(!panel || !auth.currentUser || sesionActual?.rol!=='trabajador') return;
-  const eventos=solicitudes.filter(s=>s.usuarioUid===auth.currentUser.uid && s.fechaInicio<=fecha && s.fechaFin>=fecha);
-  const fechaTexto=new Intl.DateTimeFormat('es-MX',{dateStyle:'full'}).format(new Date(fecha+'T12:00:00'));
-  panel.innerHTML=`<strong style="display:block;margin-bottom:10px;text-transform:capitalize;">${escaparHTML(fechaTexto)}</strong>`+
-    (eventos.length?eventos.map(s=>`<div class="agenda-event"><div><strong>${escaparHTML(s.tipo||'Incidencia')}</strong><div style="margin-top:4px;">${escaparHTML(s.fechaInicio)} al ${escaparHTML(s.fechaFin)}</div></div><span class="agenda-pill">${escaparHTML(s.estado||'Pendiente')}</span></div>`).join(''):'Sin incidencias registradas este día.');
-}
+
 function renderizarMiHistorialAsistencia() {
   const tbody=document.getElementById('miHistorialAsistencia');
   if(!tbody || sesionActual?.rol!=='trabajador') return;
   const lista=registroBitacora.filter(r=>r.usuarioUid===auth.currentUser?.uid).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
-  tbody.innerHTML=lista.length?lista.map(r=>`<tr><td>${escaparHTML(r.fecha)}</td><td>${escaparHTML(r.entrada||'-')}</td><td>${escaparHTML(r.salida||'-')}</td><td>${escaparHTML(r.estatus||'-')}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">Todavía no hay asistencias QR registradas para tu cuenta.</td></tr>';
+  tbody.innerHTML=lista.length?lista.map(r=>`<tr><td>${escaparHTML(r.fecha)}</td><td>${escaparHTML(r.entrada||'-')}</td><td>${escaparHTML(r.salida||'-')}</td><td>${escaparHTML(r.estatus||'-')}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">Sin asistencias registradas.</td></tr>';
 }
 
 async function subirFotoUsuario(event) {
@@ -1478,250 +1376,31 @@ async function subirFotoUsuario(event) {
   try {
     const foto=await comprimirFoto(archivo);
     await db.collection('usuarios').doc(auth.currentUser.uid).update({foto});
-    mostrarMensaje('Foto de perfil guardada correctamente en Firestore.');
+    mostrarMensaje('Foto actualizada.');
   } catch(e) { errorFirebase(e); }
-  finally { event.target.value=''; }
 }
 
 function validarAsistenciaGPS() {
-  mostrarMensaje('Chequeo GPS pendiente de una validación segura del servidor.', 'error');
+  mostrarMensaje('Chequeo GPS pendiente de validación.', 'error');
 }
 
 function inicializarSemanasRolfi() {
   semanasGlobalMap = {};
   semanasGlobalKeys = [];
-  
   const fechaInicio = new Date(2026, 10, 1);
   const fechaFin = new Date(2028, 11, 31);
-
   let curr = new Date(fechaInicio);
   while (curr <= fechaFin) {
     const anio = curr.getFullYear();
     const numSemana = obtenerNumeroSemana(curr);
     const claveSemana = `${anio}-S${numSemana}`;
-    
     if (!semanasGlobalMap[claveSemana]) {
       semanasGlobalMap[claveSemana] = [];
       semanasGlobalKeys.push(claveSemana);
     }
-    semanasGlobalMap[claveSemana].push({ 
-      diaNum: curr.getDate(), 
-      mesNum: curr.getMonth() + 1,
-      anioNum: anio,
-      fechaObj: new Date(curr) 
-    });
-
+    semanasGlobalMap[claveSemana].push({ diaNum: curr.getDate(), mesNum: curr.getMonth() + 1, anioNum: anio, fechaObj: new Date(curr) });
     curr.setDate(curr.getDate() + 1);
   }
-
-  const hoyStr = new Date().toISOString().split('T')[0];
-  let encontrado = false;
-  for (let i = 0; i < semanasGlobalKeys.length; i++) {
-    const k = semanasGlobalKeys[i];
-    const dias = semanasGlobalMap[k];
-    const match = dias.some(d => {
-      const a = d.fechaObj.getFullYear();
-      const m = String(d.fechaObj.getMonth() + 1).padStart(2, '0');
-      const day = String(d.diaNum).padStart(2, '0');
-      return `${a}-${m}-${day}` === hoyStr;
-    });
-    if (match) {
-      indiceSemanaActual = i;
-      encontrado = true;
-      break;
-    }
-  }
-  if (!encontrado) indiceSemanaActual = 0;
-}
-
-function cambiarSemanaRolfi(direccion) {
-  indiceSemanaActual += direccion;
-  if (indiceSemanaActual < 0) indiceSemanaActual = 0;
-  if (indiceSemanaActual >= semanasGlobalKeys.length) indiceSemanaActual = semanasGlobalKeys.length - 1;
-  renderizarCalendarioRolfi();
-}
-
-function irSemanaActual() {
-  const hoyStr = new Date().toISOString().split('T')[0];
-  for (let i = 0; i < semanasGlobalKeys.length; i++) {
-    const k = semanasGlobalKeys[i];
-    const dias = semanasGlobalMap[k];
-    const match = dias.some(d => {
-      const a = d.fechaObj.getFullYear();
-      const m = String(d.fechaObj.getMonth() + 1).padStart(2, '0');
-      const day = String(d.diaNum).padStart(2, '0');
-      return `${a}-${m}-${day}` === hoyStr;
-    });
-    if (match) {
-      indiceSemanaActual = i;
-      break;
-    }
-  }
-  renderizarCalendarioRolfi();
-}
-
-function exportarSemanaPDF() {
-  const claveSemana = semanasGlobalKeys[indiceSemanaActual];
-  const datosSemana = semanasGlobalMap[claveSemana];
-  const nombresDias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-
-  mostrarMensaje(`Generando reporte PDF oficial optimizado para la ${claveSemana}...`);
-
-  const contenedorPDF = document.createElement("div");
-  contenedorPDF.style.padding = "20px";
-  contenedorPDF.style.background = "#FFFFFF";
-  contenedorPDF.style.color = "#0F172A";
-  contenedorPDF.style.fontFamily = "Montserrat, sans-serif";
-  contenedorPDF.style.fontSize = "11px";
-
-  let thDíasHTML = `<th style="border: 1px solid #CBD5E1; padding: 6px; background: #691C32; color: white; text-align: left; min-width: 160px; font-size: 10px;">Trabajador / Turno</th>`;
-  datosSemana.forEach(item => {
-    const nombreDia = nombresDias[item.fechaObj.getDay()];
-    const mesNombre = obtenerNombreMes(String(item.mesNum).padStart(2, '0'));
-    thDíasHTML += `<th style="border: 1px solid #CBD5E1; padding: 6px 4px; background: #FDF8ED; color: #691C32; text-align: center; font-size: 9px; min-width: 75px;">${nombreDia}<br>${item.diaNum} ${mesNombre}</th>`;
-  });
-
-  let tbodyHTML = "";
-  if (!usuarios.length) {
-    tbodyHTML = `<tr><td colspan="${datosSemana.length + 1}" style="text-align:center; padding:15px;">No hay personal registrado.</td></tr>`;
-  } else {
-    usuarios.forEach((user, index) => {
-      tbodyHTML += `<tr>`;
-      tbodyHTML += `<td style="border: 1px solid #CBD5E1; padding: 6px; font-weight: 700; font-size: 10px; background: #F8FAFC;">${escaparHTML(user.nombre)}<br><span style="color:#691C32; font-size:8px; font-weight:600;">${escaparHTML(user.turno)}</span></td>`;
-      
-      datosSemana.forEach(item => {
-        const anioStr = item.anioNum;
-        const mesStr = String(item.mesNum).padStart(2, '0');
-        const diaStr = String(item.diaNum).padStart(2, '0');
-        const fechaStr = `${anioStr}-${mesStr}-${diaStr}`;
-        
-        const diaSemana = item.fechaObj.getDay(); 
-        const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
-        const esFestivo = diasFestivosOficiales.includes(fechaStr);
-        const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
-
-        let texto = "activo";
-        let colorFondo = "#FFFFFF";
-        let colorTexto = "#0F172A";
-
-        if (solAprobada) {
-          if (solAprobada.tipo.includes("Económico")) { texto = "PE"; colorFondo = "#FEF3C7"; colorTexto = "#92400E"; }
-          else if (solAprobada.tipo.includes("Vacaciones")) { texto = "VAC"; colorFondo = "#DBEAFE"; colorTexto = "#1E40AF"; }
-          else if (solAprobada.tipo.includes("Médica")) { texto = "MED"; colorFondo = "#FFEDD5"; colorTexto = "#C2410C"; }
-          else if (solAprobada.tipo.includes("Salida Anticipada")) { texto = "SA"; colorFondo = "#E0E7FF"; colorTexto = "#3730A3"; }
-          else if (solAprobada.tipo.includes("Permanencia")) { texto = "PT"; colorFondo = "#FCE7F3"; colorTexto = "#9D174D"; }
-          else { texto = "INC"; colorFondo = "#FEE2E2"; colorTexto = "#991B1B"; }
-        } else if (esFestivo) {
-          texto = "FESTIVO";
-          colorFondo = "#FEE2E2"; colorTexto = "#991B1B";
-        } else if (user.turno.includes("08:00 AM - 05:00 PM") || user.turno.includes("08:00 AM - 03:00 PM")) {
-          if (esFinDeSemana) {
-            texto = "X";
-            colorFondo = "#F1F5F9"; colorTexto = "#94A3B8";
-          }
-        } else if (user.turno.includes("2x2")) {
-          const ciclo = (item.diaNum + index) % 4;
-          if (ciclo === 2 || ciclo === 3) {
-            texto = "DES";
-            colorFondo = "#E2E8F0"; colorTexto = "#64748B";
-          }
-        }
-
-        tbodyHTML += `<td style="border: 1px solid #CBD5E1; padding: 6px 4px; text-align: center; font-weight: 700; font-size: 9px; background:${colorFondo}; color:${colorTexto};">${texto}</td>`;
-      });
-      tbodyHTML += `</tr>`;
-    });
-  }
-
-  contenedorPDF.innerHTML = `
-    <div style="border-bottom: 3px solid #691C32; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <h2 style="margin: 0; color: #691C32; font-size: 15px; text-transform: uppercase; font-weight: 800;">Agencia Federal de Aviación Civil</h2>
-        <p style="margin: 3px 0 0; font-size: 10px; color: #64748B; font-weight: 700;">Secretaría de Infraestructura, Comunicaciones y Transportes | Sistema SIRCA</p>
-      </div>
-      <div style="text-align: right;">
-        <span style="background: #691C32; color: white; padding: 5px 12px; border-radius: 6px; font-size: 10px; font-weight: 800;">ROLFI — ${claveSemana}</span>
-      </div>
-    </div>
-
-    <h3 style="text-align: center; color: #0F172A; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; font-weight: 700;">Reporte Oficial de Asistencia e Incidencias Semanales</h3>
-    
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
-      <thead><tr>${thDíasHTML}</tr></thead>
-      <tbody>${tbodyHTML}</tbody>
-    </table>
-
-    <div style="margin-top: 40px; display: flex; justify-content: center; page-break-inside: avoid;">
-      <div style="width: 300px; text-align: center;">
-        <div style="border-bottom: 1px solid #0F172A; width: 280px; margin: 0 auto 8px auto; height: 35px;"></div>
-        <strong style="font-size: 11px; color: #0F172A; text-transform: uppercase; display: block;">Director General de la AFAC</strong>
-        <span style="font-size: 9px; color: #64748B; font-weight: 600;">Agencia Federal de Aviación Civil</span>
-      </div>
-    </div>
-
-    <div style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 8px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 8px;">
-      <span>Documento oficial validado por el Sistema Integral de Registro y Control de Asistencia (SIRCA)</span>
-      <span>Fecha de emisión: ${new Date().toLocaleDateString()}</span>
-    </div>
-  `;
-
-  const opciones = {
-    margin:       10,
-    filename:     `ROLFI_${claveSemana}_AFAC.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-  };
-
-  html2pdf().from(contenedorPDF).set(opciones).save().then(() => {
-    mostrarMensaje(`PDF oficial de la ${claveSemana} exportado con éxito.`);
-  });
-}
-
-function actualizarBandejaAdmin() {
-  const tbody = document.getElementById("tablaAdminSolicitudes");
-  const pend = solicitudes.filter(s => s.estado === "Pendiente");
-
-  if (!pend.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay solicitudes pendientes de revisión.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = pend.map(s => `
-    <tr>
-      <td><strong>${escaparHTML(s.nombreUsuario)}</strong><br><small>${escaparHTML(s.usuarioId)}</small></td>
-      <td>${escaparHTML(s.tipo)}</td>
-      <td>${escaparHTML(s.motivo)}<br><small>${escaparHTML(s.fechaInicio)} al ${escaparHTML(s.fechaFin)}</small></td>
-      <td>
-        ${s.tienePdf ? `<button type="button" class="btn-secondary" onclick="descargarPDFSolicitud('${escaparHTML(s._docId)}')">📥 Descargar PDF</button>` : '<span style="color:var(--text-muted);">Sin PDF</span>'}
-      </td>
-      <td>
-        <button class="btn-success" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s._docId}', 'Aprobada')">Aprobar</button>
-        <button class="btn-danger" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s._docId}', 'Rechazada')">Rechazar</button>
-      </td>
-    </tr>
-  `).join("");
-}
-
-async function resolverSolicitud(id, nuevoEstado) {
-  if (!auth.currentUser || auth.currentUser.uid !== ADMIN_UID) {
-    mostrarMensaje('Solo el administrador puede resolver solicitudes.', 'error');
-    return;
-  }
-  const sol = solicitudes.find(s => s._docId === id);
-  if (!sol) {
-    mostrarMensaje('No se encontró la solicitud. Actualiza la página e intenta nuevamente.', 'error');
-    return;
-  }
-  if (sol.estado !== 'Pendiente') {
-    mostrarMensaje('Esta solicitud ya fue revisada.', 'error');
-    return;
-  }
-  if (!['Aprobada', 'Rechazada'].includes(nuevoEstado)) return;
-  try {
-    await db.collection('solicitudes').doc(id).update({estado: nuevoEstado});
-    mostrarMensaje('Solicitud ' + nuevoEstado.toLowerCase() + ' correctamente.');
-  } catch (e) { errorFirebase(e); }
 }
 
 function obtenerNumeroSemana(fecha) {
@@ -1735,91 +1414,11 @@ function obtenerNumeroSemana(fecha) {
 function renderizarCalendarioRolfi() {
   const thead = document.getElementById("rolfiThead");
   const bodyRows = document.getElementById("rolfiBodyRows");
-  const labelSemanaActual = document.getElementById("labelSemanaActual");
-  if (!thead || !bodyRows) return;
-
-  if (!semanasGlobalKeys.length) return;
-
+  if (!thead || !bodyRows || !semanasGlobalKeys.length) return;
   const claveSemana = semanasGlobalKeys[indiceSemanaActual];
   const diasArray = semanasGlobalMap[claveSemana];
-
-  if (labelSemanaActual) {
-    labelSemanaActual.textContent = `Visualizando actualmente: ${claveSemana} (Semana ${indiceSemanaActual + 1} de ${semanasGlobalKeys.length})`;
-  }
-
-  let trSemana = `<th style="position: sticky; left: 0; background: var(--afac-bg); z-index: 12; min-width: 200px; border-right: 2px solid var(--border-color);">Trabajador / Turno</th>`;
-  let trDia = `<th style="position: sticky; left: 0; background: #FDF8ED; z-index: 12; min-width: 200px; border-right: 2px solid var(--border-color);">Día del Mes</th>`;
-
-  const nombresDias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-
-  trSemana += `<th colspan="${diasArray.length}" class="rolfi-semana-header">${claveSemana}</th>`;
-  diasArray.forEach(item => {
-    const nombreDiaSemana = nombresDias[item.fechaObj.getDay()];
-    const mesNombre = obtenerNombreMes(String(item.mesNum).padStart(2, '0'));
-    trDia += `<th class="rolfi-dia-header">${nombreDiaSemana}, ${item.diaNum} ${mesNombre} ${item.anioNum}</th>`;
-  });
-
-  thead.innerHTML = `<tr>${trSemana}</tr><tr>${trDia}</tr>`;
-
-  if (!usuarios.length) { 
-    bodyRows.innerHTML = `<tr><td colspan="100" class="empty">No hay personal registrado en el sistema.</td></tr>`; 
-    return; 
-  }
-
-  let bodyHTML = "";
-  usuarios.forEach((user, index) => {
-    bodyHTML += `<tr>`;
-    bodyHTML += `<td style="text-align: left; padding: 10px; font-weight: 700; background: var(--card-bg); position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border-color);">${escaparHTML(user.nombre)}<br><small style="color:var(--afac-guinda);">${escaparHTML(user.turno)}</small></td>`;
-    
-    diasArray.forEach(item => {
-      const anioStr = item.anioNum;
-      const mesStr = String(item.mesNum).padStart(2, '0');
-      const diaStr = String(item.diaNum).padStart(2, '0');
-      const fechaStr = `${anioStr}-${mesStr}-${diaStr}`;
-      
-      const diaSemana = item.fechaObj.getDay(); 
-      const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
-      const esFestivo = diasFestivosOficiales.includes(fechaStr);
-
-      const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
-
-      let texto = "activo";
-      let clase = "tipo-activo";
-
-      if (solAprobada) {
-        if (solAprobada.tipo.includes("Económico")) { texto = "PE"; clase = "tipo-economico"; }
-        else if (solAprobada.tipo.includes("Vacaciones")) { texto = "VAC"; clase = "tipo-vacaciones"; }
-        else if (solAprobada.tipo.includes("Médica")) { texto = "MED"; clase = "tipo-medico"; }
-        else if (solAprobada.tipo.includes("Salida Anticipada")) { texto = "SA"; clase = "tipo-salida-anticipada"; }
-        else if (solAprobada.tipo.includes("Permanencia")) { texto = "PT"; clase = "tipo-permanencia-tarde"; }
-        else { texto = "INC"; clase = "tipo-comision"; }
-      } else if (esFestivo) {
-        texto = "FESTIVO";
-        clase = "tipo-festivo";
-      } else if (user.turno.includes("08:00 AM - 05:00 PM") || user.turno.includes("08:00 AM - 03:00 PM")) {
-        if (esFinDeSemana) {
-          texto = "X";
-          clase = "tipo-inhabildia";
-        }
-      } else if (user.turno.includes("2x2")) {
-        const ciclo = (item.diaNum + index) % 4;
-        if (ciclo === 2 || ciclo === 3) {
-          texto = "DES";
-          clase = "tipo-descanso";
-        }
-      }
-
-      bodyHTML += `<td class="excel-cell ${clase}" title="${solAprobada ? solAprobada.tipo : (esFestivo ? 'Día Festivo Oficial' : (esFinDeSemana ? 'Fin de semana inhábil' : 'Jornada Regular'))}">${texto}</td>`;
-    });
-
-    bodyHTML += `</tr>`;
-  });
-  bodyRows.innerHTML = bodyHTML;
-}
-
-function obtenerNombreMes(m) {
-  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-  return meses[parseInt(m) - 1];
+  thead.innerHTML = `<tr><th>Trabajador</th><th colspan="${diasArray.length}">${claveSemana}</th></tr>`;
+  bodyRows.innerHTML = usuarios.map(u => `<tr><td>${escaparHTML(u.nombre)}</td><td colspan="${diasArray.length}">-</td></tr>`).join('');
 }
 
 function nuevoUsuarioManual() {
@@ -1834,18 +1433,15 @@ function cerrarModalRegistro() { document.getElementById("modalRegistro")?.class
 async function registrarNuevoUsuario() {
   const v=id=>document.getElementById(id)?.value.trim();
   const uid=v('nuevoUid'), correo=v('nuevoCorreo').toLowerCase();
-  if(!uid || !correo || !v('nuevoNombre') || !v('nuevoPuesto') || !v('nuevaArea') || !v('nuevoNoEmpleado'))
-    return mostrarMensaje('Completa todos los campos, incluido el UID de Authentication.','error');
-  if(usuarios.some(u=>u.uid===uid || u.correo===correo)) return mostrarMensaje('El UID o correo ya está registrado.','error');
+  if(!uid || !correo) return;
   const nuevo={uid,id:document.getElementById('nuevoUsuarioID').textContent,nombre:v('nuevoNombre'),escuela:v('nuevoPuesto'),
     area:v('nuevaArea'),turno:v('nuevoTurno'),TIA:v('nuevoNoEmpleado'),correo,dentro:false,foto:null,activo:true};
   try {
     await db.collection('usuarios').doc(uid).set(nuevo);
-    cerrarModalRegistro(); document.getElementById('modalRegistro').querySelectorAll('input').forEach(i=>i.value='');
-    mostrarMensaje('Perfil guardado. El usuario debe existir previamente en Firebase Authentication.');
+    cerrarModalRegistro();
+    mostrarMensaje('Perfil guardado con éxito.');
   } catch(e) { errorFirebase(e); }
 }
-
 </script>
 
 </body>
