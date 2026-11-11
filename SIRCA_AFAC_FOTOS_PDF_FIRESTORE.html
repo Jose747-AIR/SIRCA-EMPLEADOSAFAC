@@ -85,7 +85,7 @@
       font-weight: 800; font-size: 22px; color: var(--afac-guinda);
       letter-spacing: 2px; display: flex; align-items: center; gap: 6px;
     }
-    .logo-badge-text::before { content: "✈"; font-size: 18px; color: var(--afac-dorado); }
+    .logo-badge-text::before { content: none; }
 
     .header-titles h1 { margin: 0; font-size: 22px; font-weight: 800; text-transform: uppercase; color: #FFFFFF; }
     .header-titles p { margin: 3px 0 0; font-size: 12px; color: #FEE6B4; font-weight: 600; }
@@ -492,7 +492,13 @@
     [data-theme="dark"] #contenedorFormatoBitacora,
     [data-theme="dark"] #contenedorFormatoBitacora * { color:#111; }
 
-  </style>
+  
+    /* Logotipo AFAC en lugar de los iconos de avión; conserva los temas existentes */
+    .sirca-logo-afac { display:block; width:auto; max-width:min(230px,45vw); height:38px; object-fit:contain; }
+    .sirca-acceso-titulo { display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; }
+    .sirca-logo-acceso { width:auto; max-width:145px; height:32px; object-fit:contain; background:#fff; border-radius:5px; padding:3px 5px; box-sizing:content-box; }
+    @media(max-width:600px) { .sirca-logo-afac { max-width:150px; height:30px; } .sirca-logo-acceso { max-width:115px; height:26px; } }
+</style>
 </head>
 
 <body>
@@ -501,7 +507,7 @@
   <header>
     <div class="header-content">
       <div class="brand-section">
-        <div class="logos-container"><span class="logo-badge-text">AFAC</span></div>
+        <div class="logos-container"><img src="logo.png" alt="Logotipo institucional de AFAC" class="sirca-logo-afac" /></div>
         <div class="header-titles">
           <h1>SIRCA — Control Institucional</h1>
           <p>Agencia Federal de Aviación Civil | SICT</p>
@@ -520,7 +526,7 @@
     <div id="mensajeLogin" class="message"></div>
     <div class="login-wrapper">
       <div class="login-card">
-        <h2>✈️ Acceso SIRCA</h2>
+        <h2 class="sirca-acceso-titulo"><img src="logo.png" alt="Logotipo de AFAC" class="sirca-logo-acceso" /> Acceso SIRCA</h2>
         <p>Introduce tus credenciales institucionales para ingresar al sistema.</p>
         <form onsubmit="ejecutarLogin(event)">
           <div class="form-group">
