@@ -1088,7 +1088,7 @@ function renderizarTablaBitacora() {
   const area = document.getElementById('bitacoraArea')?.value || '';
   document.getElementById('encabezadoBitacora').innerHTML = construirEncabezadoBitacora(fecha,area);
   const filas = datosFilasBitacora(fecha);
-  tbody.innerHTML = filas.length ? filas.map(({u,r}) => `<tr><td>${escaparHTML(u.noEmpleado || u.numeroEmpleado || u.id || '—')}</td><td class="nombre">${escaparHTML(u.nombre || r?.nombre || '—')}</td><td>${escaparHTML(u.turno || u.horario || '—')}</td><td>${escaparHTML(r?.entrada && r.entrada !== '-' ? r.entrada : '')}</td><td class="firma"></td><td>${escaparHTML(r?.salida && r.salida !== '-' ? r.salida : '')}</td><td class="firma"></td><td class="nota"></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No hay trabajadores o asistencias disponibles.</td></tr>';
+  tbody.innerHTML = filas.length ? filas.map(({u,r}) => `<tr><td>${escaparHTML(u.TIA || u.noEmpleado || u.numeroEmpleado || r?.numeroEmpleado || '—')}</td><td class="nombre">${escaparHTML(u.nombre || r?.nombre || '—')}</td><td>${escaparHTML(u.turno || u.horario || '—')}</td><td>${escaparHTML(r?.entrada && r.entrada !== '-' ? r.entrada : '')}</td><td class="firma"></td><td>${escaparHTML(r?.salida && r.salida !== '-' ? r.salida : '')}</td><td class="firma"></td><td class="nota"></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No hay trabajadores o asistencias disponibles.</td></tr>';
 }
 async function exportarBitacoraPDF() {
   renderizarTablaBitacora();
