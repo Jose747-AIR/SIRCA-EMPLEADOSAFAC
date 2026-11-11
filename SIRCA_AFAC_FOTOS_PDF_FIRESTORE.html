@@ -712,7 +712,12 @@ function escucharColeccion(nombre, callback) {
 function conectarDatosAdmin() {
   escucharColeccion('usuarios', datos => { usuarios = datos; actualizarTodoAdmin(); });
   escucharColeccion('solicitudes', datos => { solicitudes = datos; actualizarTodoAdmin(); });
-  escucharColeccion('asistencias', datos => { registroBitacora = datos; actualizarTodoAdmin(); });
+  escucharColeccion('asistencias', datos => {
+    registroBitacora = datos;
+    // La hoja de asistencia se actualiza independientemente de otras vistas.
+    renderizarTablaBitacora();
+    try { actualizarTodoAdmin(); } catch (e) { console.error('Error al actualizar otras vistas del administrador:',e); }
+  });
 }
 function conectarDatosTrabajador(uid) {
   const un = db.collection('usuarios').doc(uid).onSnapshot(d => {
@@ -746,6 +751,9 @@ let indiceSemanaActual = 0;
 let html5QrCodeScanner = null;
 let escanerOperacion = Promise.resolve();
 let escanerVistaActiva = false;
+let lecturaAdminEnProceso = false;
+let ultimoQRAdmin = '';
+let ultimoQRAdminMomento = 0;
 let lectorQRTrabajador = null;
 let escanerTrabajadorActivo = false;
 let operacionEscanerTrabajador = Promise.resolve();
@@ -872,7 +880,14 @@ function iniciarEscanerQR() {
     await html5QrCodeScanner.start(
       {facingMode:'environment'},
       {fps:10, qrbox:{width:250,height:250}},
-      texto => procesarLecturaQR(texto.trim()),
+      texto => {
+        const codigo = String(texto).trim();
+        const ahora = Date.now();
+        if (lecturaAdminEnProceso || (codigo === ultimoQRAdmin && ahora - ultimoQRAdminMomento < 8000)) return;
+        lecturaAdminEnProceso = true;
+        ultimoQRAdmin = codigo; ultimoQRAdminMomento = ahora;
+        procesarLecturaQR(codigo).finally(() => { lecturaAdminEnProceso = false; });
+      },
       () => {}
     );
     if (!escanerVistaActiva) await detenerEscanerQRInterno();
@@ -954,6 +969,7 @@ async function procesarLecturaQR(qrID) {
       box.textContent = `✓ ${movimiento} registrada correctamente para ${trabajador.nombre} a las ${hora}`;
     }
   } catch(e) { 
+    console.error('Error al registrar asistencia desde administrador:', e);
     if(box) {
       box.style.background = '#FEE2E2';
       box.style.color = '#991B1B';
@@ -1105,12 +1121,17 @@ function actualizarEstatusTrabajadorLocal() {
 
 function renderizarTablaBitacora() {
   const tbody = document.getElementById("tablaBitacoraAsistencia");
-  if (!registroBitacora.length) {
+  if (!tbody) return;
+  const datos = [...registroBitacora].sort((a,b) =>
+    String(b.fecha||'').localeCompare(String(a.fecha||'')) ||
+    String(b.entrada||'').localeCompare(String(a.entrada||''))
+  );
+  if (!datos.length) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay registros de entradas o salidas escaneadas aún.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = registroBitacora.map(r => `
+  tbody.innerHTML = datos.map(r => `
     <tr>
       <td><strong>${escaparHTML(r.nombre)}</strong><br><small>${escaparHTML(r.usuarioId)}</small></td>
       <td>${escaparHTML(r.fecha)}</td>
@@ -1173,7 +1194,8 @@ function exportarBitacoraPDF() {
 }
 
 function actualizarTodoAdmin() {
-  const hoyStr = new Date().toISOString().split('T')[0];
+  const ahoraLocal = new Date();
+  const hoyStr = [ahoraLocal.getFullYear(),String(ahoraLocal.getMonth()+1).padStart(2,'0'),String(ahoraLocal.getDate()).padStart(2,'0')].join('-');
   const activosHoy = registroBitacora.filter(r => r.fecha === hoyStr && r.salida === '-').length;
 
   document.getElementById("totalUsuarios").textContent = usuarios.filter(u=>u.activo!==false).length;
