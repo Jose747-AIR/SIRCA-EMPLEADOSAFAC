@@ -430,12 +430,18 @@
 /* Lista de asistencia institucional: visualización y exportación */
 #contenedorFormatoBitacora{overflow-x:auto;background:#fff;color:#111;border:1px solid #111;border-radius:0}
 .bitacora-encabezado{min-width:850px;color:#111;font-family:Arial,sans-serif}
-.bitacora-marcas{display:grid;grid-template-columns:1fr 1fr;min-height:75px;align-items:center}
+.bitacora-marcas{display:flex;justify-content:center;align-items:center;min-height:80px;padding:8px 16px;background:#fff}
+.bitacora-logo-unificado{display:block;width:100%;max-width:820px;height:auto;max-height:78px;object-fit:contain;object-position:center}
 .bitacora-comunicaciones,.bitacora-afac{padding:8px 15px;display:flex;flex-direction:column;justify-content:center}
 .bitacora-comunicaciones{border-right:1px solid #bbb;color:#9c2141}
 .bitacora-afac{color:#656565;align-items:center}
 .bitacora-marca{font:bold 30px Georgia,serif;letter-spacing:1px}
 .bitacora-marcas small{font:bold 8px Arial,sans-serif;letter-spacing:1px}
+.bitacora-logo{display:block;width:100%;max-width:460px;height:72px;object-fit:contain;object-position:left center}
+.bitacora-afac .bitacora-logo{max-width:260px;object-position:center}
+.bitacora-logo-fallback{display:none;font:bold 20px Georgia,serif;color:#691c32}
+.bitacora-logo-fallback.visible{display:block}
+.bitacora-comunicaciones,.bitacora-afac{min-width:0}
 .bitacora-titulo{text-align:center;font:bold 10px Arial,sans-serif;border-top:1px solid #111;border-bottom:1px solid #111;padding:3px}
 .bitacora-meta{display:grid;grid-template-columns:85px 1fr;border-bottom:1px solid #111;font:11px Arial,sans-serif}
 .bitacora-meta>*{padding:4px;border-right:1px solid #111;border-bottom:1px solid #111}
@@ -1066,7 +1072,7 @@ function fechaBitacoraSeleccionada() {
 function construirEncabezadoBitacora(fecha, area) {
   const f = new Date(fecha + 'T12:00:00');
   const fechaTexto = f.toLocaleDateString('es-MX', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  return `<div class="bitacora-marcas"><div class="bitacora-comunicaciones"><span class="bitacora-marca">COMUNICACIONES</span><small>SECRETARÍA DE INFRAESTRUCTURA, COMUNICACIONES Y TRANSPORTES</small></div><div class="bitacora-afac"><span class="bitacora-marca">AFAC</span><small>AGENCIA FEDERAL DE AVIACIÓN CIVIL</small></div></div><div class="bitacora-titulo">LISTA DE ASISTENCIA</div><div class="bitacora-meta"><strong>ÁREA:</strong><span>${escaparHTML(area)}</span><strong>FECHA:</strong><span>${escaparHTML(fechaTexto)}</span></div>`;
+  return `<div class="bitacora-marcas"><img class="bitacora-logo-unificado" src="afac.png" alt="Logotipos de Comunicaciones y AFAC" onerror="this.style.display='none';this.nextElementSibling.classList.add('visible')"><span class="bitacora-logo-fallback">COMUNICACIONES · AFAC</span></div><div class="bitacora-titulo">LISTA DE ASISTENCIA</div><div class="bitacora-meta"><strong>ÁREA:</strong><span>${escaparHTML(area)}</span><strong>FECHA:</strong><span>${escaparHTML(fechaTexto)}</span></div>`;
 }
 function datosFilasBitacora(fecha) {
   const asistencias = registroBitacora.filter(r => r.fecha === fecha);
