@@ -32,13 +32,19 @@
     }
 
     [data-theme="dark"] {
-      --afac-bg: #0B0F19;
-      --card-bg: #1E293B;
-      --text-main: #FFFFFF;
-      --text-muted: #CBD5E1;
-      --border-color: #334155;
-      --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
-      --shadow-hover: 0 20px 35px -5px rgba(0, 0, 0, 0.6);
+      /* Solo paleta nocturna: el modo claro permanece intacto. */
+      --afac-bg: #111923;
+      --card-bg: #1D2935;
+      --text-main: #F2F5F8;
+      --text-muted: #B5C5D3;
+      --border-color: #405160;
+      --afac-guinda: #E6A5B6;
+      --afac-guinda-light: #F1C4CE;
+      --afac-dorado: #E4BE83;
+      --afac-dorado-light: #342B27;
+      --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.32);
+      --shadow-hover: 0 20px 35px -5px rgba(0, 0, 0, 0.48);
+      color-scheme: dark;
     }
 
     * { box-sizing: border-box; font-family: 'Montserrat', sans-serif; transition: background 0.3s, color 0.3s; }
@@ -462,6 +468,29 @@
       border:1px solid var(--border-color);font-size:13px;overflow-wrap:anywhere; }
     @media(max-width:600px) { .sirca-qr-controles { flex-direction:column; }
       .sirca-qr-controles button { flex:auto;width:100%; } }
+
+  
+    /* Legibilidad nocturna: títulos, botones, pestañas y textos secundarios. */
+    [data-theme="dark"] .tab-btn:hover,
+    [data-theme="dark"] .tab-btn.active { color:#F4C5D0; }
+    [data-theme="dark"] .tab-btn.active { background:rgba(230,165,182,.12);border-bottom-color:#E6A5B6; }
+    [data-theme="dark"] .login-card h2,
+    [data-theme="dark"] .counter-card .val,
+    [data-theme="dark"] .incidencia-box-item strong { color:#F0B8C6; }
+    [data-theme="dark"] .btn-primary,
+    [data-theme="dark"] .btn-success { color:#FFFFFF; }
+    [data-theme="dark"] .form-group input::placeholder,
+    [data-theme="dark"] .form-group textarea::placeholder,
+    [data-theme="dark"] .search-box input::placeholder { color:#A9B8C7;opacity:1; }
+    [data-theme="dark"] .rolfi-dia-header { background:#2B3440;color:#F0C8D2;border-color:#405160; }
+    [data-theme="dark"] .tipo-activo { background:#243B38;color:#C2F1DE; }
+    [data-theme="dark"] .tipo-descanso { background:#344150;color:#DAE3EC; }
+    [data-theme="dark"] .tipo-inhabildia { background:#27323E;color:#AEBFCC; }
+    [data-theme="dark"] .agenda-pill { color:var(--text-main); }
+    [data-theme="dark"] .cal-dia.fuera-mes { opacity:.65; }
+    /* La hoja institucional conserva blanco/negro para impresión y PDF. */
+    [data-theme="dark"] #contenedorFormatoBitacora,
+    [data-theme="dark"] #contenedorFormatoBitacora * { color:#111; }
 
   </style>
 </head>
