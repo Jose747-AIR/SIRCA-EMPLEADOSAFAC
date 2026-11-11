@@ -248,6 +248,38 @@
       .profile-card-layout { grid-template-columns: 1fr; }
       header .header-content { flex-direction: column; align-items: flex-start; }
     }
+
+    /* Calendario premium del portal del trabajador */
+    .agenda-shell{overflow:hidden;border:1px solid var(--border-color);border-radius:22px;background:var(--card-bg);box-shadow:0 12px 32px rgba(71,18,33,.06)}
+    .agenda-banner{background:linear-gradient(115deg,#471221,#691c32 65%,#873d48);color:#fff;padding:25px 28px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;position:relative}
+    .agenda-banner:after{content:'✦';position:absolute;right:27%;top:4px;color:rgba(188,149,92,.15);font-size:105px;pointer-events:none}
+    .agenda-kicker{display:block;color:#e5c69a;font-size:10px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;margin-bottom:5px}
+    .agenda-banner h3{margin:0;font-size:clamp(22px,3vw,30px);font-weight:800;text-transform:capitalize;letter-spacing:-.6px;color:#fff}
+    .agenda-controls{display:flex;gap:8px;align-items:center;position:relative;z-index:1}
+    .agenda-controls button{height:39px;min-width:39px;justify-content:center;border:1px solid rgba(255,255,255,.27);border-radius:11px;background:rgba(255,255,255,.1);color:white;padding:0 12px;box-shadow:none}
+    .agenda-controls button:hover{background:rgba(255,255,255,.23)}
+    .agenda-controls .agenda-today{border-color:#bc955c;color:#f7d9a6;font-size:12px}
+    .agenda-legend{display:flex;gap:17px;flex-wrap:wrap;padding:17px 24px;border-bottom:1px solid var(--border-color);font-size:11px;font-weight:700;color:var(--text-muted)}
+    .agenda-legend span{display:inline-flex;align-items:center;gap:7px}
+    .agenda-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+    .agenda-dot.ok{background:#16815d}.agenda-dot.wait{background:#d59b31}.agenda-dot.no{background:#c45563}
+    .calendario-personal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;padding:16px;background:var(--card-bg)}
+    .cal-dia{min-width:0;min-height:94px;border:1px solid var(--border-color);border-radius:13px;background:var(--card-bg);padding:11px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;transition:transform .15s,border-color .15s,box-shadow .15s}
+    .cal-dia.encabezado{min-height:auto;border:0;background:transparent;align-items:center;justify-content:center;padding:10px 2px;color:var(--text-muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px}
+    .cal-dia.fuera-mes{background:var(--afac-bg);opacity:.4;border-style:dashed}
+    .cal-dia:not(.encabezado):not(.fuera-mes):hover{border-color:var(--afac-dorado);transform:translateY(-2px);box-shadow:0 8px 20px rgba(71,18,33,.09)}
+    .cal-dia strong{font-size:13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;min-width:27px;height:27px;color:var(--text-main)}
+    .cal-dia.hoy strong{background:var(--afac-guinda);border-radius:9px;color:white}
+    .cal-dia small{display:block;max-width:100%;font-size:10px;font-weight:750;border-radius:6px;padding:5px 7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
+    .cal-dia.aprobada small{background:#e4f4ed;color:#176b4c}.cal-dia.pendiente small{background:#fff1d6;color:#906018}.cal-dia.rechazada small{background:#fbe8eb;color:#a23c4b}
+    .cal-dia.aprobada{border-top:3px solid #16815d}.cal-dia.pendiente{border-top:3px solid #d59b31}.cal-dia.rechazada{border-top:3px solid #c45563}
+    .cal-dia.has-event{cursor:pointer}.cal-dia:focus-visible{outline:3px solid var(--afac-dorado);outline-offset:2px}
+    .agenda-detail{border-top:1px solid var(--border-color);padding:18px 24px;background:var(--afac-bg);color:var(--text-muted);font-size:12px}
+    .agenda-detail strong{color:var(--text-main)}
+    .agenda-event{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:11px 0;border-top:1px solid var(--border-color)}
+    .agenda-event:first-of-type{border-top:0}
+    .agenda-pill{font-size:10px;font-weight:800;border-radius:30px;padding:6px 11px;background:var(--card-bg);border:1px solid var(--border-color)}
+    @media(max-width:720px){.agenda-banner{padding:20px}.agenda-legend{padding:13px;gap:11px}.calendario-personal{gap:3px;padding:7px}.cal-dia{min-height:65px;padding:6px 3px;border-radius:7px;gap:3px}.cal-dia.encabezado{font-size:9px;letter-spacing:0}.cal-dia strong{font-size:11px;min-width:22px;height:22px}.cal-dia small{font-size:8px;padding:3px 4px}.agenda-detail{padding:14px}}
   </style>
 </head>
 
@@ -530,18 +562,21 @@
       </div>
 
       <!-- PORTAL DEL TRABAJADOR: calendario y movimientos personales -->
-      <div class="card">
-        <div class="card-header" style="flex-wrap:wrap;">
-          <h2>🗓️ Mi calendario de incidencias</h2>
-          <div class="control-buttons">
-            <button class="btn-secondary" type="button" onclick="cambiarMesPersonal(-1)">← Anterior</button>
-            <button class="btn-secondary" type="button" onclick="irMesPersonalActual()">Hoy</button>
-            <button class="btn-secondary" type="button" onclick="cambiarMesPersonal(1)">Siguiente →</button>
+      <!-- PORTAL DEL TRABAJADOR: calendario y movimientos personales -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="agenda-shell">
+          <div class="agenda-banner">
+            <div><span class="agenda-kicker">SIRCA · Agenda personal</span><h3 id="miMesCalendario">Mi calendario</h3></div>
+            <div class="agenda-controls">
+              <button type="button" aria-label="Mes anterior" title="Mes anterior" onclick="cambiarMesPersonal(-1)">❮</button>
+              <button type="button" class="agenda-today" onclick="irMesPersonalActual()">Hoy</button>
+              <button type="button" aria-label="Mes siguiente" title="Mes siguiente" onclick="cambiarMesPersonal(1)">❯</button>
+            </div>
           </div>
+          <div class="agenda-legend"><span><i class="agenda-dot ok"></i>Aprobada</span><span><i class="agenda-dot wait"></i>Pendiente</span><span><i class="agenda-dot no"></i>Rechazada</span><span>Selecciona un día para ver detalles</span></div>
+          <div id="miCalendarioIncidencias" class="calendario-personal" aria-label="Calendario personal de incidencias"></div>
+          <div id="detalleDiaPersonal" class="agenda-detail" aria-live="polite">Selecciona un día con incidencias para consultar sus detalles.</div>
         </div>
-        <p id="miMesCalendario" style="font-weight:800;color:var(--afac-guinda);"></p>
-        <div id="miCalendarioIncidencias" class="calendario-personal" aria-label="Calendario personal de incidencias"></div>
-        <p style="font-size:11px;color:var(--text-muted);margin-top:14px;">🟢 Aprobada · 🟡 Pendiente · 🔴 Rechazada. Las incidencias aprobadas se reflejan en el ROLFI del administrador.</p>
       </div>
       <div class="card">
         <div class="card-header"><h2>🕒 Mi historial de asistencia QR</h2></div>
@@ -1247,6 +1282,8 @@ function renderizarCalendarioPersonal() {
   const inicio=(new Date(anioPersonal,mesPersonal,1).getDay()+6)%7;
   const diasMes=new Date(anioPersonal,mesPersonal+1,0).getDate();
   const nombres=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const detalle=document.getElementById('detalleDiaPersonal');
+  if(detalle) detalle.textContent='Selecciona un día con incidencias para consultar sus detalles.';
   let html=nombres.map(n=>`<div class="cal-dia encabezado">${n}</div>`).join('');
   for(let i=0;i<inicio;i++) html+='<div class="cal-dia fuera-mes"></div>';
   const hoy=new Date();
@@ -1259,9 +1296,17 @@ function renderizarCalendarioPersonal() {
     const clase=principal?.estado==='Aprobada'?'aprobada':principal?.estado==='Pendiente'?'pendiente':principal?.estado==='Rechazada'?'rechazada':'';
     const esHoy=hoy.getFullYear()===anioPersonal && hoy.getMonth()===mesPersonal && hoy.getDate()===dia;
     const etiqueta=incidencias.map(x=>`${x.tipo}: ${x.estado}`).join(' | ');
-    html+=`<div class="cal-dia ${clase} ${esHoy?'hoy':''}" title="${escaparHTML(etiqueta)}"><strong>${dia}</strong>${principal?`<small>${escaparHTML(principal.tipo)}</small>`:''}${incidencias.length>1?`<small>+${incidencias.length-1} más</small>`:''}</div>`;
+    html+=`<div class="cal-dia ${clase} ${esHoy?'hoy':''} ${principal?'has-event':''}" ${principal?`role="button" tabindex="0" onclick="mostrarDetalleDiaPersonal('${fecha}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mostrarDetalleDiaPersonal('${fecha}')}"`:''} title="${escaparHTML(etiqueta)}"><strong>${dia}</strong>${principal?`<small>${escaparHTML(principal.tipo)}</small>`:''}${incidencias.length>1?`<small>+${incidencias.length-1} más</small>`:''}</div>`;
   }
   grid.innerHTML=html;
+}
+function mostrarDetalleDiaPersonal(fecha) {
+  const panel=document.getElementById('detalleDiaPersonal');
+  if(!panel || !auth.currentUser || sesionActual?.rol!=='trabajador') return;
+  const eventos=solicitudes.filter(s=>s.usuarioUid===auth.currentUser.uid && s.fechaInicio<=fecha && s.fechaFin>=fecha);
+  const fechaTexto=new Intl.DateTimeFormat('es-MX',{dateStyle:'full'}).format(new Date(fecha+'T12:00:00'));
+  panel.innerHTML=`<strong style="display:block;margin-bottom:10px;text-transform:capitalize;">${escaparHTML(fechaTexto)}</strong>`+
+    (eventos.length?eventos.map(s=>`<div class="agenda-event"><div><strong>${escaparHTML(s.tipo||'Incidencia')}</strong><div style="margin-top:4px;">${escaparHTML(s.fechaInicio)} al ${escaparHTML(s.fechaFin)}</div></div><span class="agenda-pill">${escaparHTML(s.estado||'Pendiente')}</span></div>`).join(''):'Sin incidencias registradas este día.');
 }
 function renderizarMiHistorialAsistencia() {
   const tbody=document.getElementById('miHistorialAsistencia');
