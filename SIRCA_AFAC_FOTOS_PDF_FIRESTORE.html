@@ -894,6 +894,7 @@ function conectarDatosTrabajador(uid) {
   const an = db.collection('asistencias').where('usuarioUid','==',uid).onSnapshot(snap => {
     registroBitacora = snap.docs.map(d => ({...d.data(),_docId:d.id}));
     renderizarMiHistorialAsistencia();
+    actualizarEstadoTrabajador();
   },errorFirebase);
   cancelSubs.push(an);
 }
@@ -945,6 +946,10 @@ function toggleTema() {
   html.setAttribute("data-theme", html.getAttribute("data-theme") === "light" ? "dark" : "light");
 }
 
+window.addEventListener('focus', () => {
+  actualizarEstadoTrabajador();
+  if (sesionActual?.rol === 'admin') actualizarTodoAdmin();
+});
 window.addEventListener('DOMContentLoaded', () => {
   inicializarSemanasRolfi();
   mostrarPantallaLogin();
@@ -1128,6 +1133,7 @@ async function registrarQRTrabajador(codigo) {
     });
     await cerrarCamaraTrabajador();
     mostrarEstadoQRTrabajador('✅ '+movimiento+' registrada correctamente a las '+hora+'.');
+    // El listener de Firestore actualiza automáticamente ambos paneles.
   } catch(e) {
     console.error('Asistencia QR trabajador:',e);
     mostrarEstadoQRTrabajador(
@@ -1183,9 +1189,33 @@ async function exportarBitacoraPDF() {
   } catch (e) { console.error(e); mostrarMensaje('No se pudo generar el PDF: '+e.message,'error'); }
 }
 
+
+// Estado en tiempo real: se calcula exclusivamente a partir de las asistencias de hoy.
+function trabajadorEstaDentro(usuario) {
+  if (!usuario) return false;
+  const hoy = fechaLocalBitacora();
+  return registroBitacora.some(r =>
+    r.fecha === hoy &&
+    (r.usuarioUid === (usuario.uid || usuario._docId) ||
+     (r.usuarioId != null && String(r.usuarioId) === String(usuario.id))) &&
+    r.entrada && r.entrada !== '-' &&
+    (!r.salida || r.salida === '-')
+  );
+}
+function actualizarEstadoTrabajador() {
+  if (sesionActual?.rol !== 'trabajador') return;
+  const usuario = usuarios.find(u => u.uid === auth.currentUser?.uid || u._docId === auth.currentUser?.uid);
+  const dentro = trabajadorEstaDentro(usuario);
+  const badge = document.getElementById('miEstadoBadge');
+  if (badge) {
+    badge.textContent = dentro ? '● Dentro / Activo' : '● Fuera / Inactivo';
+    badge.className = 'status ' + (dentro ? 'status-dentro' : 'status-fuera');
+  }
+}
+
 function actualizarTodoAdmin() {
   document.getElementById("totalUsuarios").textContent = usuarios.length;
-  document.getElementById("usuariosDentro").textContent = registroBitacora.filter(r => r.fecha === new Date().toLocaleDateString('en-CA') && r.salida === '-').length;
+  document.getElementById("usuariosDentro").textContent = usuarios.filter(u => trabajadorEstaDentro(u)).length;
   document.getElementById("totalBajas").textContent = usuarios.filter(u=>u.activo===false).length;
   document.getElementById("totalPendientes").textContent = solicitudes.filter(s => s.estado === "Pendiente").length;
   mostrarUsuarios();
@@ -1218,7 +1248,7 @@ function mostrarUsuarios() {
       <p style="margin:4px 0; font-size:12px; color:var(--text-muted);">Puesto: ${escaparHTML(usuario.escuela)}</p>
       <p style="margin:4px 0; font-size:11px; color:var(--afac-dorado); font-weight:700;">🕒 ${escaparHTML(usuario.turno)}</p>
       <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
-        ${usuario.dentro ? `<span class="status status-dentro">● Activo</span>` : `<span class="status status-fuera">● Fuera</span>`}
+        ${trabajadorEstaDentro(usuario) ? `<span class="status status-dentro">● Dentro / Activo</span>` : `<span class="status status-fuera">● Fuera / Inactivo</span>`}
         <button class="btn-danger" onclick="event.stopPropagation(); darDeBajaTrabajador('${escaparHTML(usuario.id)}')" style="padding:4px 8px; font-size:11px;">Dar de baja</button>
       </div>
     `;
@@ -1261,8 +1291,9 @@ function seleccionarUsuario(id) {
   document.getElementById("infoID").textContent = u.id;
 
   const estado = document.getElementById("infoEstado");
-  estado.textContent = u.dentro ? "● Activo" : "● Fuera";
-  estado.className = u.dentro ? "status status-dentro" : "status status-fuera";
+  const dentro = trabajadorEstaDentro(u);
+  estado.textContent = dentro ? "● Dentro / Activo" : "● Fuera / Inactivo";
+  estado.className = dentro ? "status status-dentro" : "status status-fuera";
 
   const avatarBox = document.getElementById("adminAvatarBox");
   if (u.foto) {
@@ -1390,6 +1421,7 @@ function cargarPortalTrabajador(id) {
   document.getElementById("miNoEmpleado").innerHTML = `<strong>No. Empleado:</strong> ${u.TIA}`;
   document.getElementById("miCorreo").innerHTML = `<strong>Correo:</strong> ${u.correo}`;
   document.getElementById("miIdQR").textContent = u.id;
+  actualizarEstadoTrabajador();
 
   const avatarBox = document.getElementById("userAvatarBox");
   if (u.foto) {
