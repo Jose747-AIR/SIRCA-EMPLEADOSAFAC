@@ -1420,18 +1420,32 @@ function actualizarBandejaAdmin() {
         ${s.tienePdf ? `<button type="button" class="btn-secondary" onclick="descargarPDFSolicitud('${escaparHTML(s._docId)}')">📥 Descargar PDF</button>` : '<span style="color:var(--text-muted);">Sin PDF</span>'}
       </td>
       <td>
-        <button class="btn-success" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s.id}', 'Aprobada')">Aprobar</button>
-        <button class="btn-danger" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s.id}', 'Rechazada')">Rechazar</button>
+        <button class="btn-success" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s._docId}', 'Aprobada')">Aprobar</button>
+        <button class="btn-danger" style="padding:6px 12px; font-size:11px;" onclick="resolverSolicitud('${s._docId}', 'Rechazada')">Rechazar</button>
       </td>
     </tr>
   `).join("");
 }
 
-async function resolverSolicitud(id,nuevoEstado) {
-  const sol=solicitudes.find(s=>s.id===id); if(!sol) return;
-  try { await db.collection('solicitudes').doc(sol._docId).update({estado:nuevoEstado});
-    mostrarMensaje('Solicitud '+nuevoEstado.toLowerCase()+'.');
-  } catch(e) { errorFirebase(e); }
+async function resolverSolicitud(id, nuevoEstado) {
+  if (!auth.currentUser || auth.currentUser.uid !== ADMIN_UID) {
+    mostrarMensaje('Solo el administrador puede resolver solicitudes.', 'error');
+    return;
+  }
+  const sol = solicitudes.find(s => s._docId === id);
+  if (!sol) {
+    mostrarMensaje('No se encontró la solicitud. Actualiza la página e intenta nuevamente.', 'error');
+    return;
+  }
+  if (sol.estado !== 'Pendiente') {
+    mostrarMensaje('Esta solicitud ya fue revisada.', 'error');
+    return;
+  }
+  if (!['Aprobada', 'Rechazada'].includes(nuevoEstado)) return;
+  try {
+    await db.collection('solicitudes').doc(id).update({estado: nuevoEstado});
+    mostrarMensaje('Solicitud ' + nuevoEstado.toLowerCase() + ' correctamente.');
+  } catch (e) { errorFirebase(e); }
 }
 
 function obtenerNumeroSemana(fecha) {
