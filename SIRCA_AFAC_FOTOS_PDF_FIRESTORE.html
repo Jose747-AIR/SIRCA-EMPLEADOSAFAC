@@ -394,7 +394,7 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <h2>🗓️ ROLFI — Vista Semanal Interactiva</h2>
+              <h2>🗓️ ROLFI — Actualización Automática por Incidencias Aprobadas</h2>
               <p style="margin:4px 0 0; font-size:12px; color:var(--text-muted);" id="labelSemanaActual">Navegando entre semanas (2026 - 2028)</p>
             </div>
             <div class="control-buttons">
@@ -529,6 +529,28 @@
         </div>
       </div>
 
+      <!-- PORTAL DEL TRABAJADOR: calendario y movimientos personales -->
+      <div class="card">
+        <div class="card-header" style="flex-wrap:wrap;">
+          <h2>🗓️ Mi calendario de incidencias</h2>
+          <div class="control-buttons">
+            <button class="btn-secondary" type="button" onclick="cambiarMesPersonal(-1)">← Anterior</button>
+            <button class="btn-secondary" type="button" onclick="irMesPersonalActual()">Hoy</button>
+            <button class="btn-secondary" type="button" onclick="cambiarMesPersonal(1)">Siguiente →</button>
+          </div>
+        </div>
+        <p id="miMesCalendario" style="font-weight:800;color:var(--afac-guinda);"></p>
+        <div id="miCalendarioIncidencias" class="calendario-personal" aria-label="Calendario personal de incidencias"></div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:14px;">🟢 Aprobada · 🟡 Pendiente · 🔴 Rechazada. Las incidencias aprobadas se reflejan en el ROLFI del administrador.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>🕒 Mi historial de asistencia QR</h2></div>
+        <div class="table-container">
+          <table><thead><tr><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead>
+            <tbody id="miHistorialAsistencia"><tr><td colspan="4" class="empty">Sin registros de asistencia.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
       <div class="card">
         <div class="card-header"><h2>📑 Solicitar Nuevo Permiso, Vacaciones o Incidencia</h2></div>
         <form id="formMiSolicitud" onsubmit="enviarSolicitudTrabajador(event)">
@@ -654,6 +676,12 @@ function conectarDatosTrabajador(uid) {
     if (sesionActual?.id) cargarPortalTrabajador(sesionActual.id);
   },errorFirebase);
   cancelSubs.push(sn);
+  // Solo lee asistencias del usuario autenticado; las reglas de Firestore lo restringen.
+  const an = db.collection('asistencias').where('usuarioUid','==',uid).onSnapshot(snap => {
+    registroBitacora = snap.docs.map(d => ({...d.data(),_docId:d.id}));
+    renderizarMiHistorialAsistencia();
+  },errorFirebase);
+  cancelSubs.push(an);
 }
 let usuarios = []; 
 let solicitudes = [];
@@ -1179,6 +1207,8 @@ function cargarPortalTrabajador(id) {
   contenedorQR.innerHTML = "";
   new QRCode(contenedorQR, { text: u.id, width: 150, height: 150, colorDark: "#691C32", colorLight: "#FFFFFF" });
 
+  renderizarCalendarioPersonal();
+  renderizarMiHistorialAsistencia();
   const misSol = solicitudes.filter(s => s.usuarioId === u.id);
   const tbody = document.getElementById("tablaMisSolicitudes");
   if (!misSol.length) {
@@ -1194,6 +1224,50 @@ function cargarPortalTrabajador(id) {
       </tr>
     `).join("");
   }
+}
+
+// El calendario se deriva de solicitudes existentes: no crea registros ni altera Firestore.
+let mesPersonal = new Date().getMonth();
+let anioPersonal = new Date().getFullYear();
+function cambiarMesPersonal(delta) {
+  const d = new Date(anioPersonal, mesPersonal + delta, 1);
+  mesPersonal = d.getMonth(); anioPersonal = d.getFullYear();
+  renderizarCalendarioPersonal();
+}
+function irMesPersonalActual() {
+  const d = new Date(); mesPersonal = d.getMonth(); anioPersonal = d.getFullYear();
+  renderizarCalendarioPersonal();
+}
+function renderizarCalendarioPersonal() {
+  const grid=document.getElementById('miCalendarioIncidencias');
+  if(!grid || sesionActual?.rol!=='trabajador') return;
+  const titulo=document.getElementById('miMesCalendario');
+  titulo.textContent=new Intl.DateTimeFormat('es-MX',{month:'long',year:'numeric'}).format(new Date(anioPersonal,mesPersonal,1));
+  const misSolicitudes=solicitudes.filter(s=>s.usuarioUid===auth.currentUser?.uid);
+  const inicio=(new Date(anioPersonal,mesPersonal,1).getDay()+6)%7;
+  const diasMes=new Date(anioPersonal,mesPersonal+1,0).getDate();
+  const nombres=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  let html=nombres.map(n=>`<div class="cal-dia encabezado">${n}</div>`).join('');
+  for(let i=0;i<inicio;i++) html+='<div class="cal-dia fuera-mes"></div>';
+  const hoy=new Date();
+  for(let dia=1;dia<=diasMes;dia++) {
+    const fecha=`${anioPersonal}-${String(mesPersonal+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const incidencias=misSolicitudes.filter(x=>x.fechaInicio<=fecha && x.fechaFin>=fecha);
+    const orden={Aprobada:0,Pendiente:1,Rechazada:2};
+    incidencias.sort((a,b)=>(orden[a.estado]??3)-(orden[b.estado]??3));
+    const principal=incidencias[0];
+    const clase=principal?.estado==='Aprobada'?'aprobada':principal?.estado==='Pendiente'?'pendiente':principal?.estado==='Rechazada'?'rechazada':'';
+    const esHoy=hoy.getFullYear()===anioPersonal && hoy.getMonth()===mesPersonal && hoy.getDate()===dia;
+    const etiqueta=incidencias.map(x=>`${x.tipo}: ${x.estado}`).join(' | ');
+    html+=`<div class="cal-dia ${clase} ${esHoy?'hoy':''}" title="${escaparHTML(etiqueta)}"><strong>${dia}</strong>${principal?`<small>${escaparHTML(principal.tipo)}</small>`:''}${incidencias.length>1?`<small>+${incidencias.length-1} más</small>`:''}</div>`;
+  }
+  grid.innerHTML=html;
+}
+function renderizarMiHistorialAsistencia() {
+  const tbody=document.getElementById('miHistorialAsistencia');
+  if(!tbody || sesionActual?.rol!=='trabajador') return;
+  const lista=registroBitacora.filter(r=>r.usuarioUid===auth.currentUser?.uid).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
+  tbody.innerHTML=lista.length?lista.map(r=>`<tr><td>${escaparHTML(r.fecha)}</td><td>${escaparHTML(r.entrada||'-')}</td><td>${escaparHTML(r.salida||'-')}</td><td>${escaparHTML(r.estatus||'-')}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">Todavía no hay asistencias QR registradas para tu cuenta.</td></tr>';
 }
 
 async function subirFotoUsuario(event) {
