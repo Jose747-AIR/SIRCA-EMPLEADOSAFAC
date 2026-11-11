@@ -901,30 +901,65 @@ function detenerEscanerQR() {
 }
 
 async function procesarLecturaQR(qrID) {
-  const trabajador = usuarios.find(u => u.id === qrID);
+  const trabajador = usuarios.find(u => u.id === qrID || u.uid === qrID);
   const box = document.getElementById('resultadoEscaneoBox'); 
   if(box) box.style.display='block';
-  if (!trabajador) { if(box) box.textContent='Código QR no reconocido'; return; }
+  
+  if (!trabajador) { 
+    if(box) {
+      box.style.background = '#FEE2E2';
+      box.style.color = '#991B1B';
+      box.textContent = '❌ Código QR no reconocido en la base de datos';
+    } 
+    return; 
+  }
+
   const hoy = new Date();
-  const fecha = [hoy.getFullYear(),String(hoy.getMonth()+1).padStart(2,'0'),String(hoy.getDate()).padStart(2,'0')].join('-');
-  const hora = hoy.toLocaleTimeString('es-MX');
-  const ref = db.collection('asistencias').doc(trabajador.uid+'_'+fecha);
+  const fecha = [hoy.getFullYear(), String(hoy.getMonth()+1).padStart(2,'0'), String(hoy.getDate()).padStart(2,'0')].join('-');
+  const hora = hoy.toLocaleTimeString('es-MX', {hour12: false});
+  
+  const docId = `${trabajador.uid}_${fecha}`;
+  const ref = db.collection('asistencias').doc(docId);
+
   try {
     let movimiento = '';
     await db.runTransaction(async tx => {
       const snap = await tx.get(ref);
       if (!snap.exists) {
         movimiento = 'Entrada';
-        tx.set(ref, {id: ref.id, usuarioUid: trabajador.uid, usuarioId: trabajador.id, nombre: trabajador.nombre, fecha, entrada: hora, salida: '-', estatus: 'En Turno'});
+        tx.set(ref, {
+          id: docId,
+          usuarioUid: trabajador.uid,
+          usuarioId: trabajador.id,
+          nombre: trabajador.nombre,
+          fecha: fecha,
+          entrada: hora,
+          salida: '-',
+          estatus: 'En Turno'
+        });
       } else if (snap.data().salida === '-') {
         movimiento = 'Salida';
-        tx.update(ref, {salida: hora, estatus: 'Completado'});
+        tx.update(ref, {
+          salida: hora,
+          estatus: 'Completado'
+        });
       } else {
-        throw Error('La jornada del día de hoy ya cuenta con entrada y salida registradas.');
+        throw Error('La jornada de este trabajador ya cuenta con entrada y salida registradas hoy.');
       }
     });
-    if(box) box.textContent = `✓ ${movimiento} registrada para ${trabajador.nombre} a las ${hora}`;
-  } catch(e) { if(box) box.textContent = e.message; }
+
+    if(box) {
+      box.style.background = '#DCFCE7';
+      box.style.color = '#166534';
+      box.textContent = `✓ ${movimiento} registrada correctamente para ${trabajador.nombre} a las ${hora}`;
+    }
+  } catch(e) { 
+    if(box) {
+      box.style.background = '#FEE2E2';
+      box.style.color = '#991B1B';
+      box.textContent = `⚠️ ${e.message}`;
+    } 
+  }
 }
 
 function estadoEscanerTrabajador(mensaje) {
@@ -1028,13 +1063,14 @@ async function registrarMiQR(codigo) {
     const ahora=new Date();
     const fecha=[ahora.getFullYear(),String(ahora.getMonth()+1).padStart(2,'0'),String(ahora.getDate()).padStart(2,'0')].join('-');
     const hora=ahora.toLocaleTimeString('es-MX',{hour12:false});
-    const ref=db.collection('asistencias').doc(uid+'_'+fecha);
+    const docId = `${uid}_${fecha}`;
+    const ref=db.collection('asistencias').doc(docId);
     let movimiento='';
     await db.runTransaction(async tx=>{
       const doc=await tx.get(ref);
       if (!doc.exists) {
         movimiento='Entrada';
-        tx.set(ref,{id:ref.id,usuarioUid:uid,usuarioId:usuario.id,nombre:usuario.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'});
+        tx.set(ref,{id:docId,usuarioUid:uid,usuarioId:usuario.id,nombre:usuario.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'});
       } else if (doc.data().usuarioUid===uid && doc.data().salida==='-') {
         movimiento='Salida';
         tx.update(ref,{salida:hora,estatus:'Completado'});
