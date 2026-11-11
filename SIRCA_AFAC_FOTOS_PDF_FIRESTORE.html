@@ -561,6 +561,20 @@
         </div>
       </div>
 
+      <!-- ESCÁNER QR DEL TRABAJADOR -->
+      <div class="card" id="tarjetaEscanerTrabajador">
+        <div class="card-header"><div><h2>📷 Registrar mi asistencia con QR</h2><p style="font-size:12px;color:var(--text-muted);margin-top:6px">Escanea tu código QR para registrar tu entrada o salida.</p></div></div>
+        <div style="max-width:520px;margin:auto;text-align:center">
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:14px">
+            <button type="button" class="btn-primary" id="btnAbrirCamaraTrabajador" onclick="iniciarEscanerTrabajador()">📷 Abrir escáner</button>
+            <button type="button" class="btn-secondary" id="btnCerrarCamaraTrabajador" onclick="detenerEscanerTrabajador()" disabled>Detener cámara</button>
+          </div>
+          <div id="lectorQRTrabajador" style="width:100%;border-radius:16px;overflow:hidden"></div>
+          <div id="estadoQRTrabajador" role="status" aria-live="polite" style="margin-top:12px;padding:12px;border-radius:12px;background:var(--afac-bg);border:1px solid var(--border-color);font-size:13px">Pulsa «Abrir escáner» y concede permiso para usar la cámara.</div>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:10px">El QR debe corresponder a tu propia cuenta. La cámara requiere HTTPS y permiso del navegador.</p>
+        </div>
+      </div>
+
       <!-- PORTAL DEL TRABAJADOR: calendario y movimientos personales -->
       <!-- PORTAL DEL TRABAJADOR: calendario y movimientos personales -->
       <div class="card" style="padding:0;overflow:hidden;">
@@ -731,6 +745,10 @@ let indiceSemanaActual = 0;
 let html5QrCodeScanner = null;
 let escanerOperacion = Promise.resolve();
 let escanerVistaActiva = false;
+let lectorQRTrabajador = null;
+let escanerTrabajadorActivo = false;
+let operacionEscanerTrabajador = Promise.resolve();
+let registroTrabajadorEnProceso = false;
 
 const diasFestivosOficiales = [
   "2026-09-16", "2026-11-16", "2026-12-25", 
@@ -787,6 +805,7 @@ function mostrarPantallaLogin() {
   document.getElementById("panelTrabajadorIndividual").classList.add("hidden");
   document.getElementById("btnCerrarSesion").classList.add("hidden");
   detenerEscanerQR();
+  detenerEscanerTrabajador();
 }
 
 async function ejecutarLogin(e) {
@@ -798,10 +817,12 @@ async function ejecutarLogin(e) {
 }
 
 async function cerrarSesion() {
+  await detenerEscanerTrabajador();
   try { await auth.signOut(); } catch(e) { errorFirebase(e); }
 }
 
 function iniciarVistaAdmin() {
+  detenerEscanerTrabajador();
   document.getElementById("pantallaLogin").classList.add("hidden");
   document.getElementById("navTabsAdmin").classList.remove("hidden");
   document.getElementById("contenedorPrincipalApp").classList.remove("hidden");
@@ -900,6 +921,86 @@ async function procesarLecturaQR(qrID) {
     });
     box.textContent='Asistencia registrada: '+trabajador.nombre+' '+hora;
   } catch(e) { box.textContent=e.message; }
+}
+
+function estadoEscanerTrabajador(mensaje) {
+  const el = document.getElementById('estadoQRTrabajador');
+  if (el) el.textContent = mensaje;
+}
+function controlesEscanerTrabajador(activo) {
+  const abrir = document.getElementById('btnAbrirCamaraTrabajador');
+  const cerrar = document.getElementById('btnCerrarCamaraTrabajador');
+  if (abrir) abrir.disabled = activo;
+  if (cerrar) cerrar.disabled = !activo;
+}
+function iniciarEscanerTrabajador() {
+  if (sesionActual?.rol !== 'trabajador' || !auth.currentUser) return;
+  escanerTrabajadorActivo = true;
+  controlesEscanerTrabajador(true);
+  estadoEscanerTrabajador('Solicitando acceso a la cámara…');
+  operacionEscanerTrabajador = operacionEscanerTrabajador.catch(()=>{}).then(async () => {
+    if (!escanerTrabajadorActivo) return;
+    if (!window.isSecureContext) throw Error('Abre la aplicación desde GitHub Pages (HTTPS).');
+    if (typeof Html5Qrcode === 'undefined') throw Error('No se pudo cargar la biblioteca del escáner.');
+    if (!lectorQRTrabajador) lectorQRTrabajador = new Html5Qrcode('lectorQRTrabajador');
+    const st = lectorQRTrabajador.getState();
+    if (st !== 2 && st !== 3) {
+      await lectorQRTrabajador.start({facingMode:'environment'}, {fps:8,qrbox:{width:220,height:220}}, codigo=>registrarMiQR(codigo.trim()), ()=>{});
+    }
+    if (!escanerTrabajadorActivo) await pararLectorTrabajador();
+    else estadoEscanerTrabajador('Cámara activa. Coloca tu QR dentro del recuadro.');
+  }).catch(err=>{
+    console.error('Escáner del trabajador:',err);
+    escanerTrabajadorActivo=false;
+    controlesEscanerTrabajador(false);
+    estadoEscanerTrabajador('No se pudo abrir la cámara: '+(err.message||err)+'. Comprueba el permiso del navegador.');
+  });
+}
+async function pararLectorTrabajador() {
+  if (!lectorQRTrabajador) return;
+  const st=lectorQRTrabajador.getState();
+  if (st===2 || st===3) await lectorQRTrabajador.stop();
+}
+function detenerEscanerTrabajador() {
+  escanerTrabajadorActivo=false;
+  controlesEscanerTrabajador(false);
+  operacionEscanerTrabajador=operacionEscanerTrabajador.catch(()=>{}).then(pararLectorTrabajador).catch(console.warn);
+  estadoEscanerTrabajador('Cámara detenida.');
+  return operacionEscanerTrabajador;
+}
+async function registrarMiQR(codigo) {
+  if (registroTrabajadorEnProceso || sesionActual?.rol!=='trabajador' || !auth.currentUser) return;
+  const uid=auth.currentUser.uid;
+  const usuario=usuarios.find(u=>u.uid===uid || u._docId===uid);
+  if (!usuario || codigo!==String(usuario.id)) {
+    estadoEscanerTrabajador('El QR escaneado no corresponde a tu credencial.');
+    return;
+  }
+  registroTrabajadorEnProceso=true;
+  estadoEscanerTrabajador('QR reconocido. Guardando asistencia…');
+  try {
+    const ahora=new Date();
+    const fecha=[ahora.getFullYear(),String(ahora.getMonth()+1).padStart(2,'0'),String(ahora.getDate()).padStart(2,'0')].join('-');
+    const hora=ahora.toLocaleTimeString('es-MX',{hour12:false});
+    const ref=db.collection('asistencias').doc(uid+'_'+fecha);
+    let movimiento='';
+    await db.runTransaction(async tx=>{
+      const doc=await tx.get(ref);
+      if (!doc.exists) {
+        movimiento='Entrada';
+        tx.set(ref,{id:ref.id,usuarioUid:uid,usuarioId:usuario.id,nombre:usuario.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'});
+      } else if (doc.data().usuarioUid===uid && doc.data().salida==='-') {
+        movimiento='Salida';
+        tx.update(ref,{salida:hora,estatus:'Completado'});
+      } else throw Error('Ya registraste entrada y salida hoy.');
+    });
+    estadoEscanerTrabajador(movimiento+' registrada correctamente a las '+hora+'.');
+    await detenerEscanerTrabajador();
+    estadoEscanerTrabajador(movimiento+' registrada correctamente a las '+hora+'.');
+  } catch(err) {
+    console.error('Registro QR trabajador:',err);
+    estadoEscanerTrabajador(err.code==='permission-denied'?'Firestore bloqueó el registro. Publica las reglas de asistencia para trabajadores.':(err.message||'No se pudo registrar la asistencia.'));
+  } finally {registroTrabajadorEnProceso=false;}
 }
 
 function renderizarTablaBitacora() {
