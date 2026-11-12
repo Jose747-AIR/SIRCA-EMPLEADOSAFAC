@@ -498,6 +498,15 @@
     .sirca-acceso-titulo { display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; }
     .sirca-logo-acceso { width:auto; max-width:145px; height:32px; object-fit:contain; background:#fff; border-radius:5px; padding:3px 5px; box-sizing:content-box; }
     @media(max-width:600px) { .sirca-logo-afac { max-width:150px; height:30px; } .sirca-logo-acceso { max-width:115px; height:26px; } }
+
+/* Módulos institucionales: respetan las variables del tema existente */
+.sirca-modulo{background:var(--card-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:14px;padding:18px;margin:16px 0}
+.sirca-modulo h3{color:var(--afac-guinda);margin:0 0 12px}
+.sirca-modulo input,.sirca-modulo select,.sirca-modulo textarea{max-width:100%;padding:9px;border:1px solid var(--border-color);border-radius:8px;background:var(--card-bg);color:inherit}
+.sirca-modulo .sirca-grid{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
+.sirca-modulo .sirca-grid label{display:grid;gap:5px;flex:1 1 150px}
+.sirca-registro{border-bottom:1px solid var(--border-color);padding:9px 0;font-size:13px;overflow-wrap:anywhere}
+.sirca-registro:last-child{border:0}.sirca-registro small{opacity:.75}
 </style>
 </head>
 
@@ -639,6 +648,19 @@
       </div>
 
       <!-- VISTA ROLFI -->
+
+      <section class="sirca-modulo" id="sircaAdminExtras">
+        <h3>🔔 Notificaciones y solicitudes</h3><div id="sircaAdminAvisos">Cargando avisos…</div>
+        <h3 style="margin-top:18px">📅 Calendario institucional</h3>
+        <form class="sirca-grid" onsubmit="return agregarFestivoSIRCA(event)">
+          <label>Fecha<input type="date" id="sircaFestivoFecha" required></label>
+          <label>Descripción<input type="text" id="sircaFestivoNombre" maxlength="100" required placeholder="Ej. Día inhábil institucional"></label>
+          <button type="submit" class="btn-success">Agregar fecha</button>
+        </form>
+        <div id="sircaListaFestivos"></div>
+        <h3 style="margin-top:18px">🛡️ Historial de auditoría</h3>
+        <div id="sircaAuditoria">Cargando historial…</div>
+      </section>
       <div id="vistaRolfi" class="hidden">
         <div class="card">
           <div class="card-header">
@@ -695,6 +717,8 @@
 
     <!-- PANEL TRABAJADOR INDIVIDUAL -->
     <div id="panelTrabajadorIndividual" class="hidden">
+      <section class="sirca-modulo"><h3>🔔 Mis notificaciones</h3><div id="sircaAvisosTrabajador">Sin notificaciones.</div></section>
+
       <div class="card">
         <div class="card-header">
           <h2>💳 Mi Credencial Digital e Imagen de Perfil</h2>
@@ -910,6 +934,8 @@ function conectarDatosAdmin() {
   escucharColeccion('usuarios', datos => { usuarios = datos; actualizarTodoAdmin(); });
   escucharColeccion('solicitudes', datos => { solicitudes = datos; actualizarTodoAdmin(); });
   escucharColeccion('asistencias', datos => { registroBitacora = datos; actualizarTodoAdmin(); });
+  escucharColeccion('auditoria', datos => { historialAuditoriaSIRCA = datos; renderizarExtrasSIRCA(); });
+  escucharColeccion('festivos', datos => { festivosPersonalizados = datos; renderizarExtrasSIRCA(); renderizarCalendarioRolfi(); });
 }
 function conectarDatosTrabajador(uid) {
   const un = db.collection('usuarios').doc(uid).onSnapshot(d => {
@@ -922,8 +948,11 @@ function conectarDatosTrabajador(uid) {
   const sn = db.collection('solicitudes').where('usuarioUid','==',uid).onSnapshot(snap => {
     solicitudes = snap.docs.map(d => ({...d.data(),_docId:d.id}));
     if (sesionActual?.id) cargarPortalTrabajador(sesionActual.id);
+    renderizarExtrasSIRCA();
   },errorFirebase);
   cancelSubs.push(sn);
+  const fn=db.collection('festivos').onSnapshot(snap=>{festivosPersonalizados=snap.docs.map(d=>({...d.data(),_docId:d.id}));renderizarCalendarioPersonal();},errorFirebase);
+  cancelSubs.push(fn);
   // Solo lee asistencias del usuario autenticado; las reglas de Firestore lo restringen.
   const an = db.collection('asistencias').where('usuarioUid','==',uid).onSnapshot(snap => {
     registroBitacora = snap.docs.map(d => ({...d.data(),_docId:d.id}));
@@ -934,6 +963,8 @@ function conectarDatosTrabajador(uid) {
 }
 let usuarios = []; 
 let solicitudes = [];
+let festivosPersonalizados = [];
+let historialAuditoriaSIRCA = [];
 let registroBitacora = []; // Almacena los registros de entrada y salida por QR
 let totalBajasContador = 0;
 let usuarioSeleccionadoID = null;
@@ -988,7 +1019,7 @@ window.addEventListener('DOMContentLoaded', () => {
   inicializarSemanasRolfi();
   mostrarPantallaLogin();
   auth.onAuthStateChanged(user => {
-    limpiarSubs(); usuarios=[]; solicitudes=[]; registroBitacora=[]; sesionActual=null;
+    limpiarSubs(); usuarios=[]; solicitudes=[]; registroBitacora=[]; festivosPersonalizados=[]; historialAuditoriaSIRCA=[]; sesionActual=null;
     if (!user) { mostrarPantallaLogin(); return; }
     if (user.uid === ADMIN_UID) {
       sesionActual = {rol:'admin', uid:user.uid};
@@ -1030,6 +1061,7 @@ function iniciarVistaAdmin() {
   document.getElementById("btnCerrarSesion").classList.remove("hidden");
   cambiarVistaAdmin("control");
   actualizarTodoAdmin();
+  renderizarExtrasSIRCA();
 }
 
 function iniciarVistaTrabajador(idTrabajador) {
@@ -1040,6 +1072,7 @@ function iniciarVistaTrabajador(idTrabajador) {
   document.getElementById("panelTrabajadorIndividual").classList.remove("hidden");
   document.getElementById("btnCerrarSesion").classList.remove("hidden");
   cargarPortalTrabajador(idTrabajador);
+  renderizarExtrasSIRCA();
 }
 
 
@@ -1299,7 +1332,7 @@ function calcularDiasHabilesEntre(inicio, fin) {
   while (curr <= d2) {
     let dayOfWeek = curr.getDay();
     let fechaStr = curr.toISOString().split('T')[0];
-    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !diasFestivosOficiales.includes(fechaStr)) {
+    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !esFestivoSIRCA(fechaStr)) {
       count++;
     }
     curr.setDate(curr.getDate() + 1);
@@ -1364,7 +1397,10 @@ function seleccionarUsuario(id) {
 async function darDeBajaTrabajador(id) {
   const u=usuarios.find(x=>x.id===id); if(!u || !confirm('¿Dar de baja a '+u.nombre+'?')) return;
   try {
-    await db.collection('usuarios').doc(u.uid).update({activo:false});
+    const lote=db.batch();
+    lote.update(db.collection('usuarios').doc(u.uid),{activo:false});
+    lote.set(db.collection('auditoria').doc(),{accion:'BAJA_TRABAJADOR',usuarioUid:u.uid,actorUid:auth.currentUser.uid,detalle:'Baja administrativa de trabajador',fecha:firebase.firestore.FieldValue.serverTimestamp()});
+    await lote.commit();
     mostrarMensaje('Trabajador marcado como inactivo. Deshabilita también su acceso en Authentication desde Firebase.');
   } catch(e) { errorFirebase(e); }
 }
@@ -1690,7 +1726,7 @@ function exportarSemanaPDF() {
         
         const diaSemana = item.fechaObj.getDay(); 
         const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
-        const esFestivo = diasFestivosOficiales.includes(fechaStr);
+        const esFestivo = esFestivoSIRCA(fechaStr);
         const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
 
         let texto = "activo";
@@ -1812,7 +1848,10 @@ async function resolverSolicitud(id, nuevoEstado) {
   }
   if (!['Aprobada', 'Rechazada'].includes(nuevoEstado)) return;
   try {
-    await db.collection('solicitudes').doc(id).update({estado: nuevoEstado});
+    const lote=db.batch();
+    lote.update(db.collection('solicitudes').doc(id),{estado:nuevoEstado,revisadaEn:firebase.firestore.FieldValue.serverTimestamp(),revisadaPor:auth.currentUser.uid});
+    lote.set(db.collection('auditoria').doc(),{accion:'SOLICITUD_'+nuevoEstado.toUpperCase(),solicitudId:id,usuarioUid:sol.usuarioUid,actorUid:auth.currentUser.uid,detalle:'Solicitud '+sol.tipo+' '+nuevoEstado.toLowerCase(),fecha:firebase.firestore.FieldValue.serverTimestamp()});
+    await lote.commit();
     mostrarMensaje('Solicitud ' + nuevoEstado.toLowerCase() + ' correctamente.');
   } catch (e) { errorFirebase(e); }
 }
@@ -1872,7 +1911,7 @@ function renderizarCalendarioRolfi() {
       
       const diaSemana = item.fechaObj.getDay(); 
       const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
-      const esFestivo = diasFestivosOficiales.includes(fechaStr);
+      const esFestivo = esFestivoSIRCA(fechaStr);
 
       const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
 
@@ -1938,6 +1977,28 @@ async function registrarNuevoUsuario() {
     mostrarMensaje('Perfil guardado. El usuario debe existir previamente en Firebase Authentication.');
   } catch(e) { errorFirebase(e); }
 }
+
+
+// ===== MÓDULOS INSTITUCIONALES SIRCA =====
+function esFestivoSIRCA(fecha){return diasFestivosOficiales.includes(fecha)||festivosPersonalizados.some(f=>f.fecha===fecha);}
+function formatoFechaSIRCA(valor){try{if(!valor)return 'Sin fecha';let d=valor.toDate?valor.toDate():new Date(valor);return d.toLocaleString('es-MX');}catch{return 'Sin fecha';}}
+function renderizarExtrasSIRCA(){
+ const admin=sesionActual?.rol==='admin';
+ const avisosAdmin=document.getElementById('sircaAdminAvisos');
+ if(admin&&avisosAdmin){const pendientes=solicitudes.filter(x=>x.estado==='Pendiente');avisosAdmin.innerHTML=pendientes.length?pendientes.slice(0,15).map(x=>`<div class="sirca-registro">🔔 <b>${escaparHTML(x.nombreUsuario||'Trabajador')}</b> solicita ${escaparHTML(x.tipo||'permiso')} (${escaparHTML(x.fechaInicio||'')} – ${escaparHTML(x.fechaFin||'')})</div>`).join(''):'No hay solicitudes pendientes.';}
+ const avisosTrab=document.getElementById('sircaAvisosTrabajador');
+ if(!admin&&avisosTrab){const lista=solicitudes.filter(x=>x.usuarioUid===auth.currentUser?.uid).slice().sort((a,b)=>(b.creadaEn?.seconds||0)-(a.creadaEn?.seconds||0)).slice(0,12);avisosTrab.innerHTML=lista.length?lista.map(x=>`<div class="sirca-registro"><b>${escaparHTML(x.tipo||'Solicitud')}</b>: ${escaparHTML(x.estado||'Pendiente')}<br><small>${escaparHTML(x.fechaInicio||'')} – ${escaparHTML(x.fechaFin||'')}</small></div>`).join(''):'No tienes solicitudes registradas.';}
+ const fest=document.getElementById('sircaListaFestivos');
+ if(admin&&fest){const fechas=festivosPersonalizados.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));fest.innerHTML=fechas.length?fechas.map(f=>`<div class="sirca-registro">📅 ${escaparHTML(f.fecha)} · ${escaparHTML(f.nombre)} <button type="button" class="btn-danger" style="float:right;padding:3px 9px" onclick="eliminarFestivoSIRCA('${escaparHTML(f._docId)}')">Eliminar</button></div>`).join(''):'Sin fechas adicionales. Los días oficiales precargados permanecen activos.';}
+ const aud=document.getElementById('sircaAuditoria');
+ if(admin&&aud){const lista=historialAuditoriaSIRCA.slice().sort((a,b)=>(b.fecha?.seconds||0)-(a.fecha?.seconds||0)).slice(0,40);aud.innerHTML=lista.length?lista.map(x=>`<div class="sirca-registro"><b>${escaparHTML(x.accion)}</b> · ${escaparHTML(x.detalle||'')}<br><small>${escaparHTML(formatoFechaSIRCA(x.fecha))} · UID: ${escaparHTML(x.actorUid||'')}</small></div>`).join(''):'Todavía no hay eventos de auditoría.';}
+}
+async function agregarFestivoSIRCA(e){e.preventDefault();if(auth.currentUser?.uid!==ADMIN_UID)return false;
+ const fecha=document.getElementById('sircaFestivoFecha').value,nombre=document.getElementById('sircaFestivoNombre').value.trim();if(!fecha||!nombre)return false;
+ try{const lote=db.batch();lote.set(db.collection('festivos').doc(fecha),{fecha,nombre,creadoPor:auth.currentUser.uid,creadaEn:firebase.firestore.FieldValue.serverTimestamp()});lote.set(db.collection('auditoria').doc(),{accion:'FESTIVO_AGREGADO',actorUid:auth.currentUser.uid,detalle:fecha+' · '+nombre,fecha:firebase.firestore.FieldValue.serverTimestamp()});await lote.commit();e.target.reset();mostrarMensaje('Fecha institucional agregada.');}catch(err){errorFirebase(err);}return false;
+}
+async function eliminarFestivoSIRCA(id){if(auth.currentUser?.uid!==ADMIN_UID||!confirm('¿Eliminar esta fecha institucional?'))return;
+ try{const lote=db.batch();lote.delete(db.collection('festivos').doc(id));lote.set(db.collection('auditoria').doc(),{accion:'FESTIVO_ELIMINADO',actorUid:auth.currentUser.uid,detalle:id,fecha:firebase.firestore.FieldValue.serverTimestamp()});await lote.commit();mostrarMensaje('Fecha eliminada.');}catch(err){errorFirebase(err);}}
 
 </script>
 
