@@ -936,7 +936,7 @@
     <div class="form-row">
       <div class="form-group">
         <label>Turno / Horario Institucional *</label>
-        <select id="nuevoTurno" style="font-weight:700; color:var(--afac-guinda);">
+        <select id="nuevoTurno" onchange="alternarInicio2x2()" style="font-weight:700; color:var(--afac-guinda);">
           <option value="08:00 AM - 05:00 PM">08:00 AM a 05:00 PM (Lunes a Viernes)</option>
           <option value="08:00 AM - 03:00 PM">08:00 AM a 03:00 PM (Lunes a Viernes - Corto)</option>
           <option value="08:00 AM - 08:00 PM (2x2)">08:00 AM a 08:00 PM (12 hrs - 2 días SÍ, 2 días NO)</option>
@@ -945,6 +945,12 @@
         </select>
       </div>
       <div class="form-group"><label>No. Empleado *</label><input type="text" id="nuevoNoEmpleado" placeholder="EMP-4001"></div>
+    </div>
+
+    <div class="form-group" id="grupoInicio2x2" style="display:none">
+      <label for="nuevoInicio2x2">Primer día que le toca trabajar (turno 2×2) *</label>
+      <input type="date" id="nuevoInicio2x2">
+      <small>El sistema repetirá automáticamente 2 días de trabajo y 2 de descanso, incluso al cambiar de mes o año.</small>
     </div>
 
     <div class="form-row">
@@ -1837,8 +1843,9 @@ function exportarSemanaPDF() {
             colorFondo = "#F1F5F9"; colorTexto = "#94A3B8";
           }
         } else if (user.turno.includes("2x2")) {
-          const ciclo = (item.diaNum + index) % 4;
-          if (ciclo === 2 || ciclo === 3) {
+          const trabaja = esDiaLaboral2x2(item.fechaObj, user.inicioCiclo2x2);
+          if (trabaja === null) { texto = "CONFIG"; colorFondo = "#FEF3C7"; colorTexto = "#92400E"; }
+          else if (trabaja === false) {
             texto = "DES";
             colorFondo = "#E2E8F0"; colorTexto = "#64748B";
           }
@@ -1941,6 +1948,49 @@ async function resolverSolicitud(id, nuevoEstado) {
   } catch (e) { errorFirebase(e); }
 }
 
+function fechaISO2x2(fecha) {
+  return `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}-${String(fecha.getDate()).padStart(2,'0')}`;
+}
+function esDiaLaboral2x2(fecha, inicio) {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(inicio || '')) return null;
+  const diaUTC = Date.UTC(fecha.getFullYear(),fecha.getMonth(),fecha.getDate());
+  const [a,m,d] = inicio.split('-').map(Number);
+  const diferencia = Math.round((diaUTC-Date.UTC(a,m-1,d))/86400000);
+  return ((diferencia%4)+4)%4 < 2;
+}
+function alternarInicio2x2() {
+  const turno = document.getElementById('nuevoTurno')?.value || '';
+  const grupo = document.getElementById('grupoInicio2x2');
+  if (grupo) grupo.style.display = turno.includes('2x2') ? 'block' : 'none';
+}
+let uidCiclo2x2 = null;
+function abrirModalCiclo2x2(uid) {
+  const usuario = usuarios.find(u=>u.uid===uid || u._docId===uid);
+  if (!usuario || !usuario.turno?.includes('2x2')) return;
+  uidCiclo2x2 = uid;
+  document.getElementById('nombreCiclo2x2').textContent = usuario.nombre;
+  document.getElementById('fechaCiclo2x2').value = usuario.inicioCiclo2x2 || '';
+  const modal = document.getElementById('modalCiclo2x2');
+  modal.style.display = 'flex';
+  modal.classList.add('active');
+}
+function cerrarModalCiclo2x2() {
+  const modal = document.getElementById('modalCiclo2x2');
+  modal.classList.remove('active');
+  modal.style.display = 'none';
+  uidCiclo2x2 = null;
+}
+async function guardarCiclo2x2() {
+  const fecha = document.getElementById('fechaCiclo2x2').value;
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !uidCiclo2x2) {
+    return mostrarMensaje('Selecciona una fecha válida de inicio del ciclo.','error');
+  }
+  try {
+    await db.collection('usuarios').doc(uidCiclo2x2).update({inicioCiclo2x2:fecha});
+    cerrarModalCiclo2x2();
+    mostrarMensaje('Ciclo 2×2 guardado. ROLFI se actualizará automáticamente.');
+  } catch(e) { errorFirebase(e); }
+}
 function obtenerNumeroSemana(fecha) {
   const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -1986,7 +2036,7 @@ function renderizarCalendarioRolfi() {
   let bodyHTML = "";
   usuarios.forEach((user, index) => {
     bodyHTML += `<tr>`;
-    bodyHTML += `<td style="text-align: left; padding: 10px; font-weight: 700; background: var(--card-bg); position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border-color);">${escaparHTML(user.nombre)}<br><small style="color:var(--afac-guinda);">${escaparHTML(user.turno)}</small></td>`;
+    bodyHTML += `<td style="text-align: left; padding: 10px; font-weight: 700; background: var(--card-bg); position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border-color);">${escaparHTML(user.nombre)}<br><small style="color:var(--afac-guinda);">${escaparHTML(user.turno)}</small>${user.turno?.includes('2x2') ? `<br><button class="btn-secondary" style="padding:5px 9px;font-size:11px;margin-top:7px" onclick="abrirModalCiclo2x2('${escaparHTML(user.uid || user._docId)}')">⚙ Configurar inicio 2×2</button><br><small>${user.inicioCiclo2x2 ? 'Inicio: '+escaparHTML(user.inicioCiclo2x2) : 'Pendiente de configurar'}</small>` : ''}</td>`;
     
     diasArray.forEach(item => {
       const anioStr = item.anioNum;
@@ -2019,8 +2069,9 @@ function renderizarCalendarioRolfi() {
           clase = "tipo-inhabildia";
         }
       } else if (user.turno.includes("2x2")) {
-        const ciclo = (item.diaNum + index) % 4;
-        if (ciclo === 2 || ciclo === 3) {
+        const trabaja = esDiaLaboral2x2(item.fechaObj, user.inicioCiclo2x2);
+        if (trabaja === null) { texto = "CONFIG"; clase = "tipo-descanso"; }
+        else if (trabaja === false) {
           texto = "DES";
           clase = "tipo-descanso";
         }
@@ -2044,6 +2095,7 @@ function nuevoUsuarioManual() {
   const id='SIRCA-'+String(Math.max(0,...ids)+1).padStart(3,'0');
   document.getElementById('nuevoUsuarioID').textContent=id;
   document.getElementById('modalRegistro').classList.add('active');
+  alternarInicio2x2();
 }
 
 function cerrarModalRegistro() { document.getElementById("modalRegistro")?.classList.remove("active"); }
@@ -2053,9 +2105,10 @@ async function registrarNuevoUsuario() {
   const uid=v('nuevoUid'), correo=v('nuevoCorreo').toLowerCase();
   if(!uid || !correo || !v('nuevoNombre') || !v('nuevoPuesto') || !v('nuevaArea') || !v('nuevoNoEmpleado'))
     return mostrarMensaje('Completa todos los campos, incluido el UID de Authentication.','error');
+  if(v('nuevoTurno').includes('2x2') && !v('nuevoInicio2x2')) return mostrarMensaje('Indica el primer día de trabajo del turno 2×2.','error');
   if(usuarios.some(u=>u.uid===uid || u.correo===correo)) return mostrarMensaje('El UID o correo ya está registrado.','error');
   const nuevo={uid,id:document.getElementById('nuevoUsuarioID').textContent,nombre:v('nuevoNombre'),escuela:v('nuevoPuesto'),
-    area:v('nuevaArea'),turno:v('nuevoTurno'),TIA:v('nuevoNoEmpleado'),correo,dentro:false,foto:null,activo:true};
+    area:v('nuevaArea'),turno:v('nuevoTurno'),TIA:v('nuevoNoEmpleado'),inicioCiclo2x2:v('nuevoTurno').includes('2x2')?v('nuevoInicio2x2'):null,correo,dentro:false,foto:null,activo:true};
   try {
     await db.collection('usuarios').doc(uid).set(nuevo);
     cerrarModalRegistro(); document.getElementById('modalRegistro').querySelectorAll('input').forEach(i=>i.value='');
@@ -2065,5 +2118,17 @@ async function registrarNuevoUsuario() {
 
 </script>
 
+<div id="modalCiclo2x2" class="modal-overlay" style="display:none;z-index:2000">
+  <div class="modal-content" style="max-width:480px">
+    <div class="modal-header"><h2>Configurar ciclo 2×2</h2><button class="close" onclick="cerrarModalCiclo2x2()">×</button></div>
+    <p id="nombreCiclo2x2"></p>
+    <div class="form-group"><label for="fechaCiclo2x2">Primer día de trabajo del ciclo</label><input id="fechaCiclo2x2" type="date"></div>
+    <p style="font-size:13px;color:var(--text-muted)">A partir de esa fecha: 2 días de trabajo, 2 días de descanso, y se repite automáticamente. También se calculan fechas anteriores.</p>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn-secondary" onclick="cerrarModalCiclo2x2()">Cancelar</button>
+      <button class="btn-success" onclick="guardarCiclo2x2()">Guardar ciclo</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
