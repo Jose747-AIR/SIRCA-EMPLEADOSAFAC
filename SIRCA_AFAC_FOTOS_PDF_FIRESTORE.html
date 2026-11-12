@@ -2036,8 +2036,17 @@ function renderizarCalendarioRolfi() {
     return; 
   }
 
+  // Agrupar únicamente la vista ROLFI por horario, sin modificar el orden global
+  // de usuarios ni sus registros en Firebase.
+  const usuariosRolfi = [...usuarios].sort((a, b) => {
+    const horarioA = String(a.turno || 'Sin horario').trim();
+    const horarioB = String(b.turno || 'Sin horario').trim();
+    return horarioA.localeCompare(horarioB, 'es', {numeric:true}) ||
+      String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
+  });
   let bodyHTML = "";
-  usuarios.forEach((user, index) => {
+  // Una sola tabla continua: trabajadores consecutivos según su horario.
+  usuariosRolfi.forEach((user, index) => {
     bodyHTML += `<tr>`;
     bodyHTML += `<td style="text-align: left; padding: 10px; font-weight: 700; background: var(--card-bg); position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border-color);">${escaparHTML(user.nombre)}<br><small style="color:var(--afac-guinda);">${escaparHTML(user.turno)}</small>${user.turno?.includes('2x2') ? `<br><button class="btn-secondary" style="padding:5px 9px;font-size:11px;margin-top:7px" onclick="abrirModalCiclo2x2('${escaparHTML(user.uid || user._docId)}')">⚙ Configurar inicio 2×2</button><br><small>${user.inicioCiclo2x2 ? 'Inicio: '+escaparHTML(user.inicioCiclo2x2) : 'Pendiente de configurar'}</small>` : ''}</td>`;
     
