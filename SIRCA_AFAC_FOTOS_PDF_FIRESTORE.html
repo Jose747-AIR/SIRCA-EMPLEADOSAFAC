@@ -1844,7 +1844,7 @@ function exportarSemanaPDF() {
           }
         } else if (user.turno.includes("2x2")) {
           const trabaja = esDiaLaboral2x2(item.fechaObj, user.inicioCiclo2x2);
-          if (trabaja === null) { texto = "CONFIG"; colorFondo = "#FEF3C7"; colorTexto = "#92400E"; }
+          if (trabaja === null) { texto = "SIN FECHA"; colorFondo = "#FEF3C7"; colorTexto = "#92400E"; }
           else if (trabaja === false) {
             texto = "DES";
             colorFondo = "#E2E8F0"; colorTexto = "#64748B";
@@ -1952,7 +1952,7 @@ function fechaISO2x2(fecha) {
   return `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}-${String(fecha.getDate()).padStart(2,'0')}`;
 }
 function esDiaLaboral2x2(fecha, inicio) {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(inicio || '')) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio || '')) return null;
   const diaUTC = Date.UTC(fecha.getFullYear(),fecha.getMonth(),fecha.getDate());
   const [a,m,d] = inicio.split('-').map(Number);
   const diferencia = Math.round((diaUTC-Date.UTC(a,m-1,d))/86400000);
@@ -1982,11 +1982,14 @@ function cerrarModalCiclo2x2() {
 }
 async function guardarCiclo2x2() {
   const fecha = document.getElementById('fechaCiclo2x2').value;
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !uidCiclo2x2) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !uidCiclo2x2) {
     return mostrarMensaje('Selecciona una fecha válida de inicio del ciclo.','error');
   }
   try {
     await db.collection('usuarios').doc(uidCiclo2x2).update({inicioCiclo2x2:fecha});
+    const registroLocal = usuarios.find(u => u.uid === uidCiclo2x2 || u._docId === uidCiclo2x2);
+    if (registroLocal) registroLocal.inicioCiclo2x2 = fecha;
+    renderizarCalendarioRolfi();
     cerrarModalCiclo2x2();
     mostrarMensaje('Ciclo 2×2 guardado. ROLFI se actualizará automáticamente.');
   } catch(e) { errorFirebase(e); }
@@ -2070,7 +2073,7 @@ function renderizarCalendarioRolfi() {
         }
       } else if (user.turno.includes("2x2")) {
         const trabaja = esDiaLaboral2x2(item.fechaObj, user.inicioCiclo2x2);
-        if (trabaja === null) { texto = "CONFIG"; clase = "tipo-descanso"; }
+        if (trabaja === null) { texto = "SIN FECHA"; clase = "tipo-descanso"; }
         else if (trabaja === false) {
           texto = "DES";
           clase = "tipo-descanso";
