@@ -499,14 +499,42 @@
     .sirca-logo-acceso { width:auto; max-width:145px; height:32px; object-fit:contain; background:#fff; border-radius:5px; padding:3px 5px; box-sizing:content-box; }
     @media(max-width:600px) { .sirca-logo-afac { max-width:150px; height:30px; } .sirca-logo-acceso { max-width:115px; height:26px; } }
 
-/* Módulos institucionales: respetan las variables del tema existente */
-.sirca-modulo{background:var(--card-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:14px;padding:18px;margin:16px 0}
-.sirca-modulo h3{color:var(--afac-guinda);margin:0 0 12px}
-.sirca-modulo input,.sirca-modulo select,.sirca-modulo textarea{max-width:100%;padding:9px;border:1px solid var(--border-color);border-radius:8px;background:var(--card-bg);color:inherit}
-.sirca-modulo .sirca-grid{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
-.sirca-modulo .sirca-grid label{display:grid;gap:5px;flex:1 1 150px}
-.sirca-registro{border-bottom:1px solid var(--border-color);padding:9px 0;font-size:13px;overflow-wrap:anywhere}
-.sirca-registro:last-child{border:0}.sirca-registro small{opacity:.75}
+/* SIRCA premium: solo presentación, sin cambios de base ni Firebase */
+:root{--premium-shadow:0 12px 36px rgba(49,30,40,.07)}
+.card{box-shadow:var(--premium-shadow);border-radius:18px;transition:box-shadow .2s ease}
+.card:hover{box-shadow:0 16px 42px rgba(49,30,40,.10)}
+.card-header{gap:12px;flex-wrap:wrap}
+.stats .stat-card{border-radius:17px;position:relative;overflow:hidden}
+.stats .stat-card:after{content:'';position:absolute;right:-20px;top:-34px;width:100px;height:100px;border-radius:50%;border:18px solid currentColor;opacity:.045;pointer-events:none}
+.premium-dashboard{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(250px,1fr);gap:18px;margin:18px 0 24px}
+.premium-panel{background:var(--card-bg,var(--afac-bg));border:1px solid var(--border-color);border-radius:18px;padding:20px;min-width:0;box-shadow:var(--premium-shadow)}
+.premium-heading{font-size:15px;font-weight:800;color:var(--text-main);margin:0 0 6px}
+.premium-subtitle{color:var(--text-muted);font-size:12px;margin:0 0 18px}
+.premium-bar-track{height:12px;border-radius:30px;display:flex;overflow:hidden;background:var(--border-color);margin:14px 0 12px}
+.premium-bar-inside{background:#25845d;transition:width .35s}
+.premium-bar-outside{background:#a7aeb8;transition:width .35s}
+.premium-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-main)}
+.premium-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#25845d}
+.premium-dot.out{background:#a7aeb8}
+.premium-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.premium-metric{border-radius:12px;border:1px solid var(--border-color);padding:13px;background:var(--afac-bg)}
+.premium-metric strong{display:block;font-size:23px;color:var(--text-main)}
+.premium-metric span{font-size:11px;color:var(--text-muted)}
+.premium-profile-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(110deg,rgba(105,28,50,.10),rgba(191,150,74,.08));border:1px solid var(--border-color);border-radius:14px;padding:14px 18px;margin-bottom:20px}
+.premium-profile-banner strong{font-size:14px;color:var(--text-main)}
+.premium-profile-banner small{display:block;color:var(--text-muted);margin-top:3px;font-size:11px}
+.premium-profile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:15px}
+.premium-profile-item{padding:13px;background:var(--afac-bg);border:1px solid var(--border-color);border-radius:12px;min-width:0}
+.premium-profile-item small{display:block;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.premium-profile-item strong{display:block;color:var(--text-main);font-size:13px;overflow-wrap:anywhere}
+.premium-personal-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.premium-personal-summary .premium-metric strong{font-size:18px}
+[data-theme="dark"] .premium-panel,[data-theme="dark"] .premium-profile-item,[data-theme="dark"] .premium-metric{background:#1d2935}
+[data-theme="dark"] .premium-profile-banner{background:linear-gradient(110deg,rgba(180,91,115,.17),rgba(203,157,85,.09))}
+[data-theme="dark"] .premium-bar-outside,[data-theme="dark"] .premium-dot.out{background:#75899a}
+@media(max-width:800px){.premium-dashboard{grid-template-columns:1fr}.premium-profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.premium-profile-grid,.premium-personal-summary{grid-template-columns:1fr}.premium-panel{padding:15px}}
+
 </style>
 </head>
 
@@ -574,6 +602,31 @@
           <div class="stat-card warning"><h3>Solicitudes Pendientes</h3><div class="number" id="totalPendientes">0</div></div>
           <div class="stat-card danger"><h3>Bajas</h3><div class="number" id="totalBajas">0</div></div>
         </div>
+
+
+        <!-- Resumen ejecutivo: calculado exclusivamente con datos existentes de Firestore -->
+        <section class="premium-dashboard" aria-label="Resumen de asistencia institucional">
+          <div class="premium-panel">
+            <h3 class="premium-heading">Resumen de presencia en tiempo real</h3>
+            <p class="premium-subtitle" id="premiumFechaDashboard">Asistencia del día</p>
+            <div class="premium-bar-track" role="img" aria-label="Distribución de personal dentro y fuera">
+              <div id="premiumBarDentro" class="premium-bar-inside" style="width:0%"></div>
+              <div id="premiumBarFuera" class="premium-bar-outside" style="width:100%"></div>
+            </div>
+            <div class="premium-legend">
+              <span><i class="premium-dot"></i>Dentro: <strong id="premiumDentro">0</strong></span>
+              <span><i class="premium-dot out"></i>Fuera: <strong id="premiumFuera">0</strong></span>
+            </div>
+          </div>
+          <div class="premium-panel">
+            <h3 class="premium-heading">Movimientos del día</h3>
+            <p class="premium-subtitle">Registros confirmados en Firebase</p>
+            <div class="premium-metrics">
+              <div class="premium-metric"><strong id="premiumEntradas">0</strong><span>Entradas registradas</span></div>
+              <div class="premium-metric"><strong id="premiumSalidas">0</strong><span>Salidas registradas</span></div>
+            </div>
+          </div>
+        </section>
 
         <div class="card">
           <div class="card-header"><h2>📥 Bandeja de Solicitudes y Permisos de Personal</h2></div>
@@ -648,19 +701,6 @@
       </div>
 
       <!-- VISTA ROLFI -->
-
-      <section class="sirca-modulo" id="sircaAdminExtras">
-        <h3>🔔 Notificaciones y solicitudes</h3><div id="sircaAdminAvisos">Cargando avisos…</div>
-        <h3 style="margin-top:18px">📅 Calendario institucional</h3>
-        <form class="sirca-grid" onsubmit="return agregarFestivoSIRCA(event)">
-          <label>Fecha<input type="date" id="sircaFestivoFecha" required></label>
-          <label>Descripción<input type="text" id="sircaFestivoNombre" maxlength="100" required placeholder="Ej. Día inhábil institucional"></label>
-          <button type="submit" class="btn-success">Agregar fecha</button>
-        </form>
-        <div id="sircaListaFestivos"></div>
-        <h3 style="margin-top:18px">🛡️ Historial de auditoría</h3>
-        <div id="sircaAuditoria">Cargando historial…</div>
-      </section>
       <div id="vistaRolfi" class="hidden">
         <div class="card">
           <div class="card-header">
@@ -717,13 +757,16 @@
 
     <!-- PANEL TRABAJADOR INDIVIDUAL -->
     <div id="panelTrabajadorIndividual" class="hidden">
-      <section class="sirca-modulo"><h3>🔔 Mis notificaciones</h3><div id="sircaAvisosTrabajador">Sin notificaciones.</div></section>
-
       <div class="card">
         <div class="card-header">
           <h2>💳 Mi Credencial Digital e Imagen de Perfil</h2>
           <span id="miEstadoBadge" class="status status-dentro">● Activo</span>
         </div>
+        <div class="premium-profile-banner">
+          <div><strong>Expediente laboral institucional</strong><small>Información sincronizada con el perfil de SIRCA</small></div>
+          <span id="premiumPerfilEstado" class="status status-fuera">● Fuera / Inactivo</span>
+        </div>
+
         <div style="display:grid; grid-template-columns: 220px 1fr; gap:24px; align-items:center;">
           <div style="text-align:center;">
             <div class="avatar-box" id="userAvatarBox"><div class="avatar-icon" style="font-size:50px;">👨‍✈️</div></div>
@@ -746,6 +789,16 @@
           </div>
         </div>
 
+        <section class="premium-personal-summary" aria-label="Mi asistencia de hoy">
+          <div class="premium-metric"><strong id="premiumMiEntrada">—</strong><span>Entrada de hoy</span></div>
+          <div class="premium-metric"><strong id="premiumMiSalida">—</strong><span>Salida de hoy</span></div>
+          <div class="premium-metric"><strong id="premiumMiMovimientos">0</strong><span>Movimientos de hoy</span></div>
+        </section>
+        <div class="premium-profile-grid" aria-label="Información institucional del trabajador">
+          <div class="premium-profile-item"><small>Identificación laboral</small><strong id="premiumMiNumero">—</strong></div>
+          <div class="premium-profile-item"><small>Área de adscripción</small><strong id="premiumMiArea">—</strong></div>
+          <div class="premium-profile-item"><small>Horario asignado</small><strong id="premiumMiHorario">—</strong></div>
+        </div>
         <div class="counters-grid" style="margin-top:24px;">
           <div class="counter-card">
             <h4>Mis Vacaciones 1ra Mitad</h4>
@@ -934,8 +987,6 @@ function conectarDatosAdmin() {
   escucharColeccion('usuarios', datos => { usuarios = datos; actualizarTodoAdmin(); });
   escucharColeccion('solicitudes', datos => { solicitudes = datos; actualizarTodoAdmin(); });
   escucharColeccion('asistencias', datos => { registroBitacora = datos; actualizarTodoAdmin(); });
-  escucharColeccion('auditoria', datos => { historialAuditoriaSIRCA = datos; renderizarExtrasSIRCA(); });
-  escucharColeccion('festivos', datos => { festivosPersonalizados = datos; renderizarExtrasSIRCA(); renderizarCalendarioRolfi(); });
 }
 function conectarDatosTrabajador(uid) {
   const un = db.collection('usuarios').doc(uid).onSnapshot(d => {
@@ -948,11 +999,8 @@ function conectarDatosTrabajador(uid) {
   const sn = db.collection('solicitudes').where('usuarioUid','==',uid).onSnapshot(snap => {
     solicitudes = snap.docs.map(d => ({...d.data(),_docId:d.id}));
     if (sesionActual?.id) cargarPortalTrabajador(sesionActual.id);
-    renderizarExtrasSIRCA();
   },errorFirebase);
   cancelSubs.push(sn);
-  const fn=db.collection('festivos').onSnapshot(snap=>{festivosPersonalizados=snap.docs.map(d=>({...d.data(),_docId:d.id}));renderizarCalendarioPersonal();},errorFirebase);
-  cancelSubs.push(fn);
   // Solo lee asistencias del usuario autenticado; las reglas de Firestore lo restringen.
   const an = db.collection('asistencias').where('usuarioUid','==',uid).onSnapshot(snap => {
     registroBitacora = snap.docs.map(d => ({...d.data(),_docId:d.id}));
@@ -963,8 +1011,6 @@ function conectarDatosTrabajador(uid) {
 }
 let usuarios = []; 
 let solicitudes = [];
-let festivosPersonalizados = [];
-let historialAuditoriaSIRCA = [];
 let registroBitacora = []; // Almacena los registros de entrada y salida por QR
 let totalBajasContador = 0;
 let usuarioSeleccionadoID = null;
@@ -1019,7 +1065,7 @@ window.addEventListener('DOMContentLoaded', () => {
   inicializarSemanasRolfi();
   mostrarPantallaLogin();
   auth.onAuthStateChanged(user => {
-    limpiarSubs(); usuarios=[]; solicitudes=[]; registroBitacora=[]; festivosPersonalizados=[]; historialAuditoriaSIRCA=[]; sesionActual=null;
+    limpiarSubs(); usuarios=[]; solicitudes=[]; registroBitacora=[]; sesionActual=null;
     if (!user) { mostrarPantallaLogin(); return; }
     if (user.uid === ADMIN_UID) {
       sesionActual = {rol:'admin', uid:user.uid};
@@ -1061,7 +1107,6 @@ function iniciarVistaAdmin() {
   document.getElementById("btnCerrarSesion").classList.remove("hidden");
   cambiarVistaAdmin("control");
   actualizarTodoAdmin();
-  renderizarExtrasSIRCA();
 }
 
 function iniciarVistaTrabajador(idTrabajador) {
@@ -1072,7 +1117,6 @@ function iniciarVistaTrabajador(idTrabajador) {
   document.getElementById("panelTrabajadorIndividual").classList.remove("hidden");
   document.getElementById("btnCerrarSesion").classList.remove("hidden");
   cargarPortalTrabajador(idTrabajador);
-  renderizarExtrasSIRCA();
 }
 
 
@@ -1278,6 +1322,51 @@ function actualizarEstadoTrabajador() {
     badge.textContent = dentro ? '● Dentro / Activo' : '● Fuera / Inactivo';
     badge.className = 'status ' + (dentro ? 'status-dentro' : 'status-fuera');
   }
+  actualizarPremiumTrabajador();
+}
+
+function premiumTexto(id, valor) {
+  const nodo = document.getElementById(id);
+  if (nodo) nodo.textContent = valor == null || valor === '' ? '—' : String(valor);
+}
+function actualizarPremiumAdmin() {
+  if (sesionActual?.rol !== 'admin') return;
+  const activos = usuarios.filter(u => u.activo !== false);
+  const dentro = activos.filter(trabajadorEstaDentro).length;
+  const fuera = activos.length - dentro;
+  const hoy = fechaLocalBitacora();
+  const hoyRegistros = registroBitacora.filter(r => r.fecha === hoy);
+  premiumTexto('premiumDentro', dentro);
+  premiumTexto('premiumFuera', fuera);
+  premiumTexto('premiumEntradas', hoyRegistros.filter(r => r.entrada && r.entrada !== '-').length);
+  premiumTexto('premiumSalidas', hoyRegistros.filter(r => r.salida && r.salida !== '-').length);
+  premiumTexto('premiumFechaDashboard', new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'}));
+  const total = activos.length;
+  const porcentaje = total ? (dentro / total * 100) : 0;
+  const bDentro = document.getElementById('premiumBarDentro');
+  const bFuera = document.getElementById('premiumBarFuera');
+  if (bDentro) bDentro.style.width = porcentaje + '%';
+  if (bFuera) bFuera.style.width = (100-porcentaje) + '%';
+}
+function actualizarPremiumTrabajador() {
+  if (sesionActual?.rol !== 'trabajador') return;
+  const usuario = usuarios.find(u => u.uid === auth.currentUser?.uid || u._docId === auth.currentUser?.uid);
+  if (!usuario) return;
+  const hoy = fechaLocalBitacora();
+  const r = registroBitacora.find(r => r.fecha === hoy &&
+    (r.usuarioUid === auth.currentUser?.uid || String(r.usuarioId) === String(usuario.id)));
+  premiumTexto('premiumMiEntrada', r?.entrada && r.entrada !== '-' ? r.entrada : 'Sin registrar');
+  premiumTexto('premiumMiSalida', r?.salida && r.salida !== '-' ? r.salida : 'Sin registrar');
+  premiumTexto('premiumMiMovimientos', (r?.entrada && r.entrada !== '-' ? 1 : 0) + (r?.salida && r.salida !== '-' ? 1 : 0));
+  premiumTexto('premiumMiNumero', usuario.TIA || usuario.noEmpleado || usuario.numeroEmpleado || 'No registrado');
+  premiumTexto('premiumMiArea', usuario.area);
+  premiumTexto('premiumMiHorario', usuario.turno);
+  const badge = document.getElementById('premiumPerfilEstado');
+  if (badge) {
+    const dentro = trabajadorEstaDentro(usuario);
+    badge.textContent = dentro ? '● Dentro / Activo' : '● Fuera / Inactivo';
+    badge.className = 'status ' + (dentro ? 'status-dentro' : 'status-fuera');
+  }
 }
 
 function actualizarTodoAdmin() {
@@ -1285,6 +1374,7 @@ function actualizarTodoAdmin() {
   document.getElementById("usuariosDentro").textContent = usuarios.filter(u => trabajadorEstaDentro(u)).length;
   document.getElementById("totalBajas").textContent = usuarios.filter(u=>u.activo===false).length;
   document.getElementById("totalPendientes").textContent = solicitudes.filter(s => s.estado === "Pendiente").length;
+  actualizarPremiumAdmin();
   mostrarUsuarios();
   actualizarBandejaAdmin();
   if (usuarioSeleccionadoID) seleccionarUsuario(usuarioSeleccionadoID);
@@ -1332,7 +1422,7 @@ function calcularDiasHabilesEntre(inicio, fin) {
   while (curr <= d2) {
     let dayOfWeek = curr.getDay();
     let fechaStr = curr.toISOString().split('T')[0];
-    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !esFestivoSIRCA(fechaStr)) {
+    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !diasFestivosOficiales.includes(fechaStr)) {
       count++;
     }
     curr.setDate(curr.getDate() + 1);
@@ -1397,10 +1487,7 @@ function seleccionarUsuario(id) {
 async function darDeBajaTrabajador(id) {
   const u=usuarios.find(x=>x.id===id); if(!u || !confirm('¿Dar de baja a '+u.nombre+'?')) return;
   try {
-    const lote=db.batch();
-    lote.update(db.collection('usuarios').doc(u.uid),{activo:false});
-    lote.set(db.collection('auditoria').doc(),{accion:'BAJA_TRABAJADOR',usuarioUid:u.uid,actorUid:auth.currentUser.uid,detalle:'Baja administrativa de trabajador',fecha:firebase.firestore.FieldValue.serverTimestamp()});
-    await lote.commit();
+    await db.collection('usuarios').doc(u.uid).update({activo:false});
     mostrarMensaje('Trabajador marcado como inactivo. Deshabilita también su acceso en Authentication desde Firebase.');
   } catch(e) { errorFirebase(e); }
 }
@@ -1492,6 +1579,7 @@ function cargarPortalTrabajador(id) {
   document.getElementById("miCorreo").innerHTML = `<strong>Correo:</strong> ${u.correo}`;
   document.getElementById("miIdQR").textContent = u.id;
   actualizarEstadoTrabajador();
+  actualizarPremiumTrabajador();
 
   const avatarBox = document.getElementById("userAvatarBox");
   if (u.foto) {
@@ -1726,7 +1814,7 @@ function exportarSemanaPDF() {
         
         const diaSemana = item.fechaObj.getDay(); 
         const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
-        const esFestivo = esFestivoSIRCA(fechaStr);
+        const esFestivo = diasFestivosOficiales.includes(fechaStr);
         const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
 
         let texto = "activo";
@@ -1848,10 +1936,7 @@ async function resolverSolicitud(id, nuevoEstado) {
   }
   if (!['Aprobada', 'Rechazada'].includes(nuevoEstado)) return;
   try {
-    const lote=db.batch();
-    lote.update(db.collection('solicitudes').doc(id),{estado:nuevoEstado,revisadaEn:firebase.firestore.FieldValue.serverTimestamp(),revisadaPor:auth.currentUser.uid});
-    lote.set(db.collection('auditoria').doc(),{accion:'SOLICITUD_'+nuevoEstado.toUpperCase(),solicitudId:id,usuarioUid:sol.usuarioUid,actorUid:auth.currentUser.uid,detalle:'Solicitud '+sol.tipo+' '+nuevoEstado.toLowerCase(),fecha:firebase.firestore.FieldValue.serverTimestamp()});
-    await lote.commit();
+    await db.collection('solicitudes').doc(id).update({estado: nuevoEstado});
     mostrarMensaje('Solicitud ' + nuevoEstado.toLowerCase() + ' correctamente.');
   } catch (e) { errorFirebase(e); }
 }
@@ -1911,7 +1996,7 @@ function renderizarCalendarioRolfi() {
       
       const diaSemana = item.fechaObj.getDay(); 
       const esFinDeSemana = (diaSemana === 0 || diaSemana === 6);
-      const esFestivo = esFestivoSIRCA(fechaStr);
+      const esFestivo = diasFestivosOficiales.includes(fechaStr);
 
       const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
 
@@ -1977,28 +2062,6 @@ async function registrarNuevoUsuario() {
     mostrarMensaje('Perfil guardado. El usuario debe existir previamente en Firebase Authentication.');
   } catch(e) { errorFirebase(e); }
 }
-
-
-// ===== MÓDULOS INSTITUCIONALES SIRCA =====
-function esFestivoSIRCA(fecha){return diasFestivosOficiales.includes(fecha)||festivosPersonalizados.some(f=>f.fecha===fecha);}
-function formatoFechaSIRCA(valor){try{if(!valor)return 'Sin fecha';let d=valor.toDate?valor.toDate():new Date(valor);return d.toLocaleString('es-MX');}catch{return 'Sin fecha';}}
-function renderizarExtrasSIRCA(){
- const admin=sesionActual?.rol==='admin';
- const avisosAdmin=document.getElementById('sircaAdminAvisos');
- if(admin&&avisosAdmin){const pendientes=solicitudes.filter(x=>x.estado==='Pendiente');avisosAdmin.innerHTML=pendientes.length?pendientes.slice(0,15).map(x=>`<div class="sirca-registro">🔔 <b>${escaparHTML(x.nombreUsuario||'Trabajador')}</b> solicita ${escaparHTML(x.tipo||'permiso')} (${escaparHTML(x.fechaInicio||'')} – ${escaparHTML(x.fechaFin||'')})</div>`).join(''):'No hay solicitudes pendientes.';}
- const avisosTrab=document.getElementById('sircaAvisosTrabajador');
- if(!admin&&avisosTrab){const lista=solicitudes.filter(x=>x.usuarioUid===auth.currentUser?.uid).slice().sort((a,b)=>(b.creadaEn?.seconds||0)-(a.creadaEn?.seconds||0)).slice(0,12);avisosTrab.innerHTML=lista.length?lista.map(x=>`<div class="sirca-registro"><b>${escaparHTML(x.tipo||'Solicitud')}</b>: ${escaparHTML(x.estado||'Pendiente')}<br><small>${escaparHTML(x.fechaInicio||'')} – ${escaparHTML(x.fechaFin||'')}</small></div>`).join(''):'No tienes solicitudes registradas.';}
- const fest=document.getElementById('sircaListaFestivos');
- if(admin&&fest){const fechas=festivosPersonalizados.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));fest.innerHTML=fechas.length?fechas.map(f=>`<div class="sirca-registro">📅 ${escaparHTML(f.fecha)} · ${escaparHTML(f.nombre)} <button type="button" class="btn-danger" style="float:right;padding:3px 9px" onclick="eliminarFestivoSIRCA('${escaparHTML(f._docId)}')">Eliminar</button></div>`).join(''):'Sin fechas adicionales. Los días oficiales precargados permanecen activos.';}
- const aud=document.getElementById('sircaAuditoria');
- if(admin&&aud){const lista=historialAuditoriaSIRCA.slice().sort((a,b)=>(b.fecha?.seconds||0)-(a.fecha?.seconds||0)).slice(0,40);aud.innerHTML=lista.length?lista.map(x=>`<div class="sirca-registro"><b>${escaparHTML(x.accion)}</b> · ${escaparHTML(x.detalle||'')}<br><small>${escaparHTML(formatoFechaSIRCA(x.fecha))} · UID: ${escaparHTML(x.actorUid||'')}</small></div>`).join(''):'Todavía no hay eventos de auditoría.';}
-}
-async function agregarFestivoSIRCA(e){e.preventDefault();if(auth.currentUser?.uid!==ADMIN_UID)return false;
- const fecha=document.getElementById('sircaFestivoFecha').value,nombre=document.getElementById('sircaFestivoNombre').value.trim();if(!fecha||!nombre)return false;
- try{const lote=db.batch();lote.set(db.collection('festivos').doc(fecha),{fecha,nombre,creadoPor:auth.currentUser.uid,creadaEn:firebase.firestore.FieldValue.serverTimestamp()});lote.set(db.collection('auditoria').doc(),{accion:'FESTIVO_AGREGADO',actorUid:auth.currentUser.uid,detalle:fecha+' · '+nombre,fecha:firebase.firestore.FieldValue.serverTimestamp()});await lote.commit();e.target.reset();mostrarMensaje('Fecha institucional agregada.');}catch(err){errorFirebase(err);}return false;
-}
-async function eliminarFestivoSIRCA(id){if(auth.currentUser?.uid!==ADMIN_UID||!confirm('¿Eliminar esta fecha institucional?'))return;
- try{const lote=db.batch();lote.delete(db.collection('festivos').doc(id));lote.set(db.collection('auditoria').doc(),{accion:'FESTIVO_ELIMINADO',actorUid:auth.currentUser.uid,detalle:id,fecha:firebase.firestore.FieldValue.serverTimestamp()});await lote.commit();mostrarMensaje('Fecha eliminada.');}catch(err){errorFirebase(err);}}
 
 </script>
 
