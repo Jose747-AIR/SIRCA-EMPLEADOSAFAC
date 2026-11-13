@@ -535,6 +535,14 @@
 @media(max-width:800px){.premium-dashboard{grid-template-columns:1fr}.premium-profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.premium-profile-grid,.premium-personal-summary{grid-template-columns:1fr}.premium-panel{padding:15px}}
 
+
+/* Firma manuscrita de cada movimiento QR */
+.sirca-firma-caja{width:min(96vw,540px);max-width:540px}
+#sircaFirmaCanvas{display:block;width:100%;height:210px;touch-action:none;background:#fff;border:2px solid #BC955C;border-radius:12px;cursor:crosshair}
+.sirca-firma-ayuda{font-size:12px;color:var(--text-muted);margin:10px 0 14px}
+.sirca-firma-acciones{display:flex;gap:10px;flex-wrap:wrap}
+.sirca-firma-acciones button{flex:1;justify-content:center}
+.bitacora-tabla .firma img{display:block;width:100%;max-width:95px;height:34px;object-fit:contain;margin:auto}
 </style>
 </head>
 
@@ -746,7 +754,7 @@
             <div class="form-group"><label>Área / Comandancia</label><input id="bitacoraArea" value="Comandancia Aeropuerto Internacional Felipe Ángeles" oninput="renderizarTablaBitacora()"></div>
             <div class="form-group"><label>Fecha de la lista</label><input id="bitacoraFecha" type="date" onchange="renderizarTablaBitacora()"></div>
           </div>
-          <p style="font-size:12px;color:var(--text-muted)">Formato de firma por día. Las horas se toman de Firestore; las firmas y notas se dejan en blanco para su llenado.</p>
+          <p style="font-size:12px;color:var(--text-muted)">Las horas y firmas electrónicas se toman de Firestore. Los registros anteriores sin firma se muestran en blanco.</p>
           <div class="table-container" id="contenedorFormatoBitacora">
             <div id="encabezadoBitacora" class="bitacora-encabezado"></div>
             <table class="bitacora-tabla"><thead><tr><th rowspan="2">ID</th><th rowspan="2">NOMBRE COMPLETO</th><th rowspan="2">HORARIO</th><th colspan="2">ENTRADA</th><th colspan="2">SALIDA</th><th rowspan="2">NOTA</th></tr><tr><th>HORA</th><th>FIRMA</th><th>HORA</th><th>FIRMA</th></tr></thead><tbody id="tablaBitacoraAsistencia"></tbody></table>
@@ -961,6 +969,22 @@
     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
       <button class="btn-secondary" onclick="cerrarModalRegistro()">Cancelar</button>
       <button class="btn-success" onclick="registrarNuevoUsuario()">Guardar y Registrar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Captura de firma vinculada a la lectura QR -->
+<div id="sircaFirmaModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="sircaFirmaTitulo">
+  <div class="modal-content sirca-firma-caja">
+    <div class="modal-header"><h2 id="sircaFirmaTitulo">Firma de asistencia</h2></div>
+    <p id="sircaFirmaDescripcion" style="font-size:13px;color:var(--text-muted)"></p>
+    <canvas id="sircaFirmaCanvas" aria-label="Área para dibujar la firma"></canvas>
+    <p class="sirca-firma-ayuda">Firma con el dedo, lápiz táctil o mouse. La firma se guardará con este movimiento.</p>
+    <div class="sirca-firma-acciones">
+      <button type="button" class="btn-secondary" id="sircaFirmaLimpiar">Limpiar</button>
+      <button type="button" class="btn-secondary" id="sircaFirmaCancelar">Cancelar</button>
+      <button type="button" class="btn-success" id="sircaFirmaConfirmar">Confirmar firma</button>
     </div>
   </div>
 </div>
@@ -1209,58 +1233,98 @@ async function escanearImagenTrabajador(input) {
     mostrarEstadoQRTrabajador('No se pudo leer el QR: '+(e.message||e));
   } finally { input.value = ''; }
 }
+function solicitarFirmaQR(tipo, hora) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('sircaFirmaModal');
+    const canvas = document.getElementById('sircaFirmaCanvas');
+    const ctx = canvas.getContext('2d');
+    document.getElementById('sircaFirmaTitulo').textContent = 'Firma de ' + tipo.toLowerCase();
+    document.getElementById('sircaFirmaDescripcion').textContent = 'Movimiento: ' + tipo + ' · Hora: ' + hora + '. Confirma con tu firma para registrar la asistencia.';
+    modal.classList.add('active');
+    const ancho = Math.max(280, Math.round(canvas.getBoundingClientRect().width));
+    canvas.width = ancho;
+    canvas.height = 210;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#16212c'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    let trazando = false, hayFirma = false;
+    function punto(e) {
+      const r = canvas.getBoundingClientRect();
+      return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};
+    }
+    function down(e) { e.preventDefault(); trazando=true; const p=punto(e); ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+.2,p.y+.2);ctx.stroke();hayFirma=true;canvas.setPointerCapture(e.pointerId); }
+    function move(e) { if(!trazando)return;e.preventDefault();const p=punto(e);ctx.lineTo(p.x,p.y);ctx.stroke(); }
+    function up() {trazando=false;}
+    const limpiar=document.getElementById('sircaFirmaLimpiar');
+    const cancelar=document.getElementById('sircaFirmaCancelar');
+    const confirmar=document.getElementById('sircaFirmaConfirmar');
+    function clear(){ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);hayFirma=false;}
+    function finish(value){
+      canvas.removeEventListener('pointerdown',down);canvas.removeEventListener('pointermove',move);
+      canvas.removeEventListener('pointerup',up);canvas.removeEventListener('pointercancel',up);
+      limpiar.removeEventListener('click',clear);cancelar.removeEventListener('click',cancel);
+      confirmar.removeEventListener('click',confirm);
+      modal.classList.remove('active');resolve(value);
+    }
+    function cancel(){finish(null);}
+    function confirm(){
+      if(!hayFirma){alert('Primero debes dibujar tu firma.');return;}
+      // Imagen JPEG compacta para evitar documentos de Firestore demasiado grandes.
+      const reducido=document.createElement('canvas');reducido.width=420;reducido.height=165;
+      const rctx=reducido.getContext('2d');rctx.fillStyle='#fff';rctx.fillRect(0,0,420,165);
+      rctx.drawImage(canvas,0,0,420,165);
+      const firma=reducido.toDataURL('image/jpeg',0.65);
+      if(firma.length>140000){alert('La firma es demasiado grande. Intenta de nuevo.');return;}
+      finish(firma);
+    }
+    canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);
+    canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+    limpiar.addEventListener('click',clear);cancelar.addEventListener('click',cancel);confirmar.addEventListener('click',confirm);
+  });
+}
 async function registrarQRTrabajador(codigo) {
   if (registroQRTrabajadorOcupado) return;
   if (!auth.currentUser || sesionActual?.rol !== 'trabajador') {
-    mostrarEstadoQRTrabajador('Acceso exclusivo del trabajador.');
-    return;
+    mostrarEstadoQRTrabajador('Acceso exclusivo del trabajador.');return;
   }
-  const uid = auth.currentUser.uid;
-  const trabajador = usuarios.find(u => u.uid === uid || u._docId === uid);
-  if (!trabajador || String(trabajador.id) !== String(codigo)) {
-    mostrarEstadoQRTrabajador('El QR no corresponde a tu credencial de trabajador.');
-    return;
+  const uid=auth.currentUser.uid;
+  const trabajador=usuarios.find(u=>u.uid===uid || u._docId===uid);
+  if(!trabajador || String(trabajador.id)!==String(codigo)){
+    mostrarEstadoQRTrabajador('El QR no corresponde a tu credencial de trabajador.');return;
   }
-  // Evita que la cámara genere una entrada y salida con la misma lectura continua.
-  if (codigo === ultimoQRTrabajador && Date.now() - ultimaLecturaQRTrabajador < 12000) return;
-  registroQRTrabajadorOcupado = true;
-  ultimoQRTrabajador = codigo;
-  ultimaLecturaQRTrabajador = Date.now();
-  mostrarEstadoQRTrabajador('QR reconocido. Guardando asistencia en Firebase…');
+  if(codigo===ultimoQRTrabajador && Date.now()-ultimaLecturaQRTrabajador<12000)return;
+  registroQRTrabajadorOcupado=true;
+  ultimoQRTrabajador=codigo;ultimaLecturaQRTrabajador=Date.now();
   try {
-    const ahora = new Date();
-    const fecha = fechaLocalBitacora(ahora);
-    const hora = ahora.toLocaleTimeString('es-MX',{hour12:false});
-    const ref = db.collection('asistencias').doc(uid+'_'+fecha);
-    let movimiento = '';
-    await db.runTransaction(async tx => {
-      const doc = await tx.get(ref);
-      if (!doc.exists) {
-        movimiento = 'Entrada';
-        tx.set(ref,{
-          id:ref.id,usuarioUid:uid,usuarioId:trabajador.id,
-          nombre:trabajador.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'
-        });
-      } else if (doc.data().usuarioUid === uid && doc.data().salida === '-') {
-        movimiento = 'Salida';
-        tx.update(ref,{salida:hora,estatus:'Completado'});
-      } else {
-        throw Error('Ya tienes registrada la entrada y la salida de hoy.');
-      }
-    });
     await cerrarCamaraTrabajador();
-    mostrarEstadoQRTrabajador('✅ '+movimiento+' registrada correctamente a las '+hora+'.');
-    // El listener de Firestore actualiza automáticamente ambos paneles.
-  } catch(e) {
+    const ahora=new Date(),fecha=fechaLocalBitacora(ahora);
+    const hora=ahora.toLocaleTimeString('es-MX',{hour12:false});
+    const ref=db.collection('asistencias').doc(uid+'_'+fecha);
+    // Leer el estado antes de pedir firma; volver a verificar dentro de la transacción.
+    const previo=await ref.get();
+    let movimiento;
+    if(!previo.exists)movimiento='Entrada';
+    else if(previo.data().usuarioUid===uid && previo.data().salida==='-')movimiento='Salida';
+    else throw Error('Ya tienes registrada la entrada y la salida de hoy.');
+    mostrarEstadoQRTrabajador('QR reconocido. Firma para confirmar tu '+movimiento.toLowerCase()+'.');
+    const firma=await solicitarFirmaQR(movimiento,hora);
+    if(!firma){mostrarEstadoQRTrabajador('Registro cancelado: no se guardó ninguna asistencia.');return;}
+    await db.runTransaction(async tx=>{
+      const doc=await tx.get(ref);
+      if(movimiento==='Entrada' && !doc.exists){
+        tx.set(ref,{id:ref.id,usuarioUid:uid,usuarioId:trabajador.id,
+          nombre:trabajador.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno',firmaEntrada:firma});
+      } else if(movimiento==='Salida' && doc.exists && doc.data().usuarioUid===uid && doc.data().salida==='-'){
+        tx.update(ref,{salida:hora,estatus:'Completado',firmaSalida:firma});
+      } else throw Error('El estado de la asistencia cambió. Escanea nuevamente el QR.');
+    });
+    mostrarEstadoQRTrabajador('✅ '+movimiento+' y firma guardadas correctamente a las '+hora+'.');
+  } catch(e){
     console.error('Asistencia QR trabajador:',e);
-    mostrarEstadoQRTrabajador(
-      e.code === 'permission-denied'
-      ? 'Firestore rechazó el registro. Revisa los permisos de la colección asistencias.'
-      : 'No se pudo registrar: '+(e.message||e)
-    );
-  } finally {
-    registroQRTrabajadorOcupado = false;
-  }
+    mostrarEstadoQRTrabajador(e.code==='permission-denied'
+      ? 'Firestore rechazó el registro. Publica las reglas compatibles con firmas.'
+      : 'No se pudo registrar: '+(e.message||e));
+  } finally {registroQRTrabajadorOcupado=false;}
 }
 
 function fechaLocalBitacora(d = new Date()) {
@@ -1283,6 +1347,10 @@ function datosFilasBitacora(fecha) {
   if (!plantilla.length) return asistencias.map(r => ({u: {nombre:r.nombre, id:r.usuarioId, turno:'—'},r}));
   return plantilla.map(u => ({u, r: porUid.get(String(u.uid || u.id)) || asistencias.find(r => r.usuarioId === u.id) || null}));
 }
+function imagenFirmaBitacora(firma) {
+  if (typeof firma !== 'string' || !/^data:image\/(jpeg|png);base64,[a-zA-Z0-9+/=]+$/.test(firma)) return '';
+  return `<img src="${firma}" alt="Firma electrónica registrada">`;
+}
 function renderizarTablaBitacora() {
   const tbody = document.getElementById('tablaBitacoraAsistencia');
   if (!tbody) return;
@@ -1290,7 +1358,7 @@ function renderizarTablaBitacora() {
   const area = document.getElementById('bitacoraArea')?.value || '';
   document.getElementById('encabezadoBitacora').innerHTML = construirEncabezadoBitacora(fecha,area);
   const filas = datosFilasBitacora(fecha);
-  tbody.innerHTML = filas.length ? filas.map(({u,r}) => `<tr><td>${escaparHTML(u.TIA || u.noEmpleado || u.numeroEmpleado || r?.numeroEmpleado || '—')}</td><td class="nombre">${escaparHTML(u.nombre || r?.nombre || '—')}</td><td>${escaparHTML(u.turno || u.horario || '—')}</td><td>${escaparHTML(r?.entrada && r.entrada !== '-' ? r.entrada : '')}</td><td class="firma"></td><td>${escaparHTML(r?.salida && r.salida !== '-' ? r.salida : '')}</td><td class="firma"></td><td class="nota"></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No hay trabajadores o asistencias disponibles.</td></tr>';
+  tbody.innerHTML = filas.length ? filas.map(({u,r}) => `<tr><td>${escaparHTML(u.TIA || u.noEmpleado || u.numeroEmpleado || r?.numeroEmpleado || '—')}</td><td class="nombre">${escaparHTML(u.nombre || r?.nombre || '—')}</td><td>${escaparHTML(u.turno || u.horario || '—')}</td><td>${escaparHTML(r?.entrada && r.entrada !== '-' ? r.entrada : '')}</td><td class="firma">${imagenFirmaBitacora(r?.firmaEntrada)}</td><td>${escaparHTML(r?.salida && r.salida !== '-' ? r.salida : '')}</td><td class="firma">${imagenFirmaBitacora(r?.firmaSalida)}</td><td class="nota"></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No hay trabajadores o asistencias disponibles.</td></tr>';
 }
 async function exportarBitacoraPDF() {
   renderizarTablaBitacora();
