@@ -1959,7 +1959,11 @@ async function resolverSolicitud(id, nuevoEstado) {
   }
   if (!['Aprobada', 'Rechazada'].includes(nuevoEstado)) return;
   try {
-    await db.collection('solicitudes').doc(id).update({estado: nuevoEstado});
+    await db.collection('solicitudes').doc(id).update({
+      estado: nuevoEstado,
+      revisadaPor: auth.currentUser.uid,
+      revisadaEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
     mostrarMensaje('Solicitud ' + nuevoEstado.toLowerCase() + ' correctamente.');
   } catch (e) { errorFirebase(e); }
 }
