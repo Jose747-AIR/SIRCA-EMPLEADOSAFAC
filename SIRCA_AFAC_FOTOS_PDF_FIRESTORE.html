@@ -538,6 +538,9 @@
 
 
 /* Firma manuscrita de cada movimiento QR */
+#sircaFirmaModal{z-index:99999 !important;position:fixed !important;inset:0 !important}
+#sircaFirmaModal.active{display:flex !important}
+#sircaFirmaModal .modal-content{max-height:95dvh;overflow-y:auto}
 .sirca-firma-caja{width:min(96vw,540px);max-width:540px}
 #sircaFirmaCanvas{display:block;width:100%;height:210px;touch-action:none;background:#fff;border:2px solid #BC955C;border-radius:12px;cursor:crosshair}
 .sirca-firma-ayuda{font-size:12px;color:var(--text-muted);margin:10px 0 14px}
@@ -1196,7 +1199,7 @@ function abrirCamaraTrabajador() {
       await camaraTrabajador.start(
         {facingMode:'environment'},
         {fps:8,qrbox:{width:220,height:220}},
-        codigo=>registrarQRTrabajador(codigo.trim()),
+        codigo=>{ if (!registroQRTrabajadorOcupado) registrarQRTrabajador(codigo.trim()).catch(console.error); },
         ()=>{}
       );
     }
@@ -1242,6 +1245,7 @@ function solicitarFirmaQR(tipo, hora) {
     document.getElementById('sircaFirmaTitulo').textContent = 'Firma de ' + tipo.toLowerCase();
     document.getElementById('sircaFirmaDescripcion').textContent = 'Movimiento: ' + tipo + ' · Hora: ' + hora + '. Confirma con tu firma para registrar la asistencia.';
     modal.classList.add('active');
+    modal.style.display = 'flex';
     const ancho = Math.max(280, Math.round(canvas.getBoundingClientRect().width));
     canvas.width = ancho;
     canvas.height = 210;
@@ -1265,7 +1269,7 @@ function solicitarFirmaQR(tipo, hora) {
       canvas.removeEventListener('pointerup',up);canvas.removeEventListener('pointercancel',up);
       limpiar.removeEventListener('click',clear);cancelar.removeEventListener('click',cancel);
       confirmar.removeEventListener('click',confirm);
-      modal.classList.remove('active');resolve(value);
+      modal.classList.remove('active');modal.style.display = '';resolve(value);
     }
     function cancel(){finish(null);}
     function confirm(){
@@ -1309,7 +1313,7 @@ async function registrarQRTrabajador(codigo) {
     else throw Error('Ya tienes registrada la entrada y la salida de hoy.');
     mostrarEstadoQRTrabajador('QR reconocido. Firma para confirmar tu '+movimiento.toLowerCase()+'.');
     const firma=await solicitarFirmaQR(movimiento,hora);
-    if(!firma){mostrarEstadoQRTrabajador('Registro cancelado: no se guardó ninguna asistencia.');return;}
+    if(!firma){ultimoQRTrabajador='';ultimaLecturaQRTrabajador=0;mostrarEstadoQRTrabajador('Registro cancelado: no se guardó ninguna asistencia.');return;}
     await db.runTransaction(async tx=>{
       const doc=await tx.get(ref);
       if(movimiento==='Entrada' && !doc.exists){
@@ -1321,9 +1325,11 @@ async function registrarQRTrabajador(codigo) {
     });
     mostrarEstadoQRTrabajador('✅ '+movimiento+' y firma guardadas correctamente a las '+hora+'.');
   } catch(e){
+    ultimoQRTrabajador = '';
+    ultimaLecturaQRTrabajador = 0;
     console.error('Asistencia QR trabajador:',e);
     mostrarEstadoQRTrabajador(e.code==='permission-denied'
-      ? 'Firestore rechazó el registro. Publica las reglas compatibles con firmas.'
+      ? 'Firestore denegó el acceso a la asistencia. Revisa las reglas de lectura (get) y escritura de asistencias.'
       : 'No se pudo registrar: '+(e.message||e));
   } finally {registroQRTrabajadorOcupado=false;}
 }
