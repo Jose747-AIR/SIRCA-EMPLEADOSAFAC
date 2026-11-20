@@ -540,6 +540,13 @@
 
 /* Radar exclusivo del portal trabajador */
 .sirca-gps-simple{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 16px;margin-top:20px;background:var(--afac-bg);border:1px solid var(--border-color);border-radius:12px}.sirca-gps-simple p{margin:5px 0 0;font-size:12px;color:var(--text-muted)}
+
+/* Actividades por área y jornada */
+.sirca-actividades-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:14px 0}
+.sirca-actividad-opcion{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--border-color);border-radius:12px;background:var(--afac-bg);font-size:12px;cursor:pointer}
+.sirca-actividad-opcion input{margin-top:4px;accent-color:#691c32}.sirca-actividad-opcion b{display:block;color:var(--afac-guinda)}
+.sirca-actividad-opcion small{display:block;color:var(--text-muted);margin-top:3px}
+.sirca-actividad-code{font-weight:800;white-space:normal;overflow-wrap:anywhere;color:#14532d}
 </style>
 </head>
 
@@ -795,6 +802,15 @@
         </div>
 
 
+
+        <section class="card" id="sircaMisActividades" style="margin-top:20px">
+          <div class="card-header"><h2>📋 Mis actividades de jornada</h2></div>
+          <p style="font-size:12px;color:var(--text-muted)">Selecciona una o varias actividades para la fecha indicada. Solo aparecen las actividades autorizadas de tu área. El ROLFI mostrará sus códigos.</p>
+          <div class="form-group" style="max-width:260px"><label for="sircaFechaActividad">Fecha de la actividad</label><input type="date" id="sircaFechaActividad" onchange="sircaRenderMisActividades()"></div>
+          <div id="sircaOpcionesActividades" class="sirca-actividades-grid"></div>
+          <button type="button" class="btn-primary" style="max-width:300px" onclick="sircaGuardarMisActividades()">Guardar mis actividades</button>
+          <p id="sircaEstadoActividades" style="font-size:12px;color:var(--text-muted);margin-top:12px" role="status"></p>
+        </section>
         <!-- Cambio seguro de contraseña: Firebase Authentication, no Firestore -->
         <section class="card" id="sircaSeguridadCuenta" style="margin-top:22px">
           <button type="button" id="sircaPassMostrar" class="btn-secondary" onclick="sircaAlternarPassword()" aria-expanded="false" aria-controls="sircaPassContenido">🔐 Cambiar contraseña</button>
@@ -1009,6 +1025,9 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const ADMIN_UID = "lBGi3TiBZuN3My7WtbBV8Ld7LXI3";
 let cancelSubs = [];
+let sircaCatalogo = [];
+let sircaAsignaciones = [];
+
 function limpiarSubs() { cancelSubs.forEach(f => f()); cancelSubs = []; }
 function errorFirebase(e) { console.error(e); mostrarMensaje("Error de Firebase: " + (e.message || e), "error"); }
 function escucharColeccion(nombre, callback) {
@@ -1016,9 +1035,11 @@ function escucharColeccion(nombre, callback) {
   cancelSubs.push(unsubscribe);
 }
 function conectarDatosAdmin() {
-  escucharColeccion('usuarios', datos => { usuarios = datos; actualizarTodoAdmin(); });
+  escucharColeccion('usuarios', datos => { usuarios = datos; actualizarTodoAdmin(); sircaRenderCatalogo(); });
   escucharColeccion('solicitudes', datos => { solicitudes = datos; actualizarTodoAdmin(); });
   escucharColeccion('asistencias', datos => { registroBitacora = datos; actualizarTodoAdmin(); });
+  escucharColeccion('catalogoActividades', datos => { sircaCatalogo = datos; sircaRenderCatalogo(); renderizarCalendarioRolfi(); });
+  escucharColeccion('actividadesJornada', datos => { sircaAsignaciones = datos; renderizarCalendarioRolfi(); });
 }
 function conectarDatosTrabajador(uid) {
   const un = db.collection('usuarios').doc(uid).onSnapshot(d => {
@@ -1033,6 +1054,14 @@ function conectarDatosTrabajador(uid) {
     if (sesionActual?.id) cargarPortalTrabajador(sesionActual.id);
   },errorFirebase);
   cancelSubs.push(sn);
+  const cat = db.collection('catalogoActividades').onSnapshot(snap => {
+    sircaCatalogo = snap.docs.map(d => ({...d.data(), _docId:d.id})); sircaRenderMisActividades();
+  },errorFirebase);
+  cancelSubs.push(cat);
+  const act = db.collection('actividadesJornada').where('usuarioUid','==',uid).onSnapshot(snap => {
+    sircaAsignaciones = snap.docs.map(d => ({...d.data(), _docId:d.id})); sircaRenderMisActividades();
+  },errorFirebase);
+  cancelSubs.push(act);
   // Solo lee asistencias del usuario autenticado; las reglas de Firestore lo restringen.
   const an = db.collection('asistencias').where('usuarioUid','==',uid).onSnapshot(snap => {
     registroBitacora = snap.docs.map(d => ({...d.data(),_docId:d.id}));
@@ -1097,7 +1126,7 @@ window.addEventListener('DOMContentLoaded', () => {
   inicializarSemanasRolfi();
   mostrarPantallaLogin();
   auth.onAuthStateChanged(user => {
-    limpiarSubs(); usuarios=[]; solicitudes=[]; registroBitacora=[]; sesionActual=null;
+    limpiarSubs(); usuarios=[]; solicitudes=[]; registroBitacora=[]; sircaCatalogo=[]; sircaAsignaciones=[]; sesionActual=null;
     if (!user) { mostrarPantallaLogin(); return; }
     if (user.uid === ADMIN_UID) {
       sesionActual = {rol:'admin', uid:user.uid};
@@ -1393,6 +1422,7 @@ function actualizarEstadoTrabajador() {
     badge.className = 'status ' + (dentro ? 'status-dentro' : 'status-fuera');
   }
   actualizarPremiumTrabajador();
+  sircaRenderMisActividades();
 }
 
 function premiumTexto(id, valor) {
@@ -1887,7 +1917,9 @@ function exportarSemanaPDF() {
         const esFestivo = diasFestivosOficiales.includes(fechaStr);
         const solAprobada = solicitudes.find(s => s.usuarioId === user.id && s.estado === "Aprobada" && fechaStr >= s.fechaInicio && fechaStr <= s.fechaFin);
 
-        let texto = "activo";
+        const asignacion = sircaAsignaciones.find(a => a.usuarioUid === (user.uid || user._docId) && a.fecha === fechaStr);
+      const codigosValidos = (asignacion?.codigos || []).filter(c => sircaCatalogo.some(a => a.codigo === c && a.area === user.area));
+      let texto = codigosValidos.length ? codigosValidos.join(' / ') : '—';
         let colorFondo = "#FFFFFF";
         let colorTexto = "#0F172A";
 
@@ -1915,7 +1947,7 @@ function exportarSemanaPDF() {
           }
         }
 
-        tbodyHTML += `<td style="border: 1px solid #CBD5E1; padding: 6px 4px; text-align: center; font-weight: 700; font-size: 9px; background:${colorFondo}; color:${colorTexto};">${texto}</td>`;
+        tbodyHTML += `<td style="border: 1px solid #CBD5E1; padding: 6px 4px; text-align: center; font-weight: 700; font-size: 9px; background:${colorFondo}; color:${colorTexto};"><span class="sirca-actividad-code">${escaparHTML(texto)}</span></td>`;
       });
       tbodyHTML += `</tr>`;
     });
@@ -2179,6 +2211,62 @@ function renderizarCalendarioRolfi() {
     bodyHTML += `</tr>`;
   });
   bodyRows.innerHTML = bodyHTML;
+}
+
+
+// --- Actividades laborales: catálogo administrado y selección diaria del trabajador ---
+function sircaHoyLocal(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function sircaRenderCatalogo(){
+  const sel=document.getElementById('sircaAreaCatalogo'), lista=document.getElementById('sircaListaCatalogo');
+  if(!sel||!lista)return;
+  const areaPrev=sel.value;
+  const areas=[...new Set(usuarios.map(u=>String(u.area||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  sel.innerHTML=areas.map(a=>`<option value="${escaparHTML(a)}">${escaparHTML(a)}</option>`).join('');
+  if(areas.includes(areaPrev))sel.value=areaPrev;
+  const catalogo=[...sircaCatalogo].sort((a,b)=>String(a.area).localeCompare(String(b.area))||String(a.codigo).localeCompare(String(b.codigo)));
+  lista.innerHTML=catalogo.length?catalogo.map(a=>`<div class="sirca-actividad-opcion" style="justify-content:space-between"><span><b>${escaparHTML(a.codigo)} · ${escaparHTML(a.area)}</b><small>${escaparHTML(a.nombre)}</small></span><button class="btn-danger" type="button" style="padding:6px 9px" onclick="sircaEliminarCatalogo('${escaparHTML(a._docId)}')">Eliminar</button></div>`).join(''):'<p style="font-size:12px;color:var(--text-muted)">Todavía no hay actividades configuradas.</p>';
+}
+async function sircaGuardarCatalogo(){
+  if(sesionActual?.rol!=='admin')return;
+  const area=document.getElementById('sircaAreaCatalogo').value.trim();
+  const codigo=document.getElementById('sircaCodigoCatalogo').value.trim().toUpperCase();
+  const nombre=document.getElementById('sircaNombreCatalogo').value.trim();
+  if(!area||!nombre||!/^[A-Z0-9][A-Z0-9-]{1,19}$/.test(codigo))return mostrarMensaje('Completa área, descripción y código (letras, números y guiones).','error');
+  if(sircaCatalogo.some(a=>a.codigo===codigo&&a.area!==area))return mostrarMensaje('Ese código ya existe en otra área. Utiliza un código único.','error');
+  try{await db.collection('catalogoActividades').doc(codigo).set({area,codigo,nombre});
+    document.getElementById('sircaCodigoCatalogo').value='';document.getElementById('sircaNombreCatalogo').value='';
+    mostrarMensaje('Actividad guardada correctamente.');
+  }catch(e){errorFirebase(e);}
+}
+async function sircaEliminarCatalogo(id){
+  if(sesionActual?.rol!=='admin'||!confirm('¿Eliminar esta actividad del catálogo? Las selecciones anteriores dejarán de mostrarse.'))return;
+  try{await db.collection('catalogoActividades').doc(id).delete();mostrarMensaje('Actividad eliminada.');}catch(e){errorFirebase(e);}
+}
+function sircaRenderMisActividades(){
+  const panel=document.getElementById('sircaOpcionesActividades');const fechaEl=document.getElementById('sircaFechaActividad');
+  if(!panel||!fechaEl||sesionActual?.rol!=='trabajador')return;
+  if(!fechaEl.value)fechaEl.value=sircaHoyLocal();
+  const u=usuarios.find(x=>x.uid===sesionActual.uid||x._docId===sesionActual.uid);
+  if(!u)return;
+  const disponibles=sircaCatalogo.filter(a=>a.area===u.area).sort((a,b)=>a.codigo.localeCompare(b.codigo));
+  const asignada=sircaAsignaciones.find(a=>a.usuarioUid===sesionActual.uid&&a.fecha===fechaEl.value);
+  const seleccionadas=asignada?.codigos||[];
+  panel.innerHTML=disponibles.length?disponibles.map(a=>`<label class="sirca-actividad-opcion"><input type="checkbox" class="sirca-actividad-check" value="${escaparHTML(a.codigo)}" ${seleccionadas.includes(a.codigo)?'checked':''}><span><b>${escaparHTML(a.codigo)}</b><small>${escaparHTML(a.nombre)}</small></span></label>`).join(''):'<p style="font-size:12px;color:var(--text-muted)">El administrador todavía no ha registrado actividades para tu área.</p>';
+  document.getElementById('sircaEstadoActividades').textContent=asignada?'Selección guardada para esta fecha.':'Sin actividades guardadas para esta fecha.';
+}
+async function sircaGuardarMisActividades(){
+  if(sesionActual?.rol!=='trabajador')return;
+  const fecha=document.getElementById('sircaFechaActividad').value;
+  const u=usuarios.find(x=>x.uid===sesionActual.uid||x._docId===sesionActual.uid);
+  const codigos=[...document.querySelectorAll('.sirca-actividad-check:checked')].map(x=>x.value);
+  if(!u||!/^\d{4}-\d{2}-\d{2}$/.test(fecha))return;
+  if(!codigos.length)return mostrarMensaje('Selecciona al menos una actividad.','error');
+  if(codigos.some(c=>!sircaCatalogo.some(a=>a.area===u.area&&a.codigo===c)))return mostrarMensaje('Hay una actividad que no corresponde a tu área.','error');
+  try{
+    await db.collection('actividadesJornada').doc(`${sesionActual.uid}_${fecha}`).set({usuarioUid:sesionActual.uid,usuarioId:u.id,area:u.area,fecha,codigos,actualizadoEn:firebase.firestore.FieldValue.serverTimestamp()});
+    document.getElementById('sircaEstadoActividades').textContent='Actividades guardadas correctamente en Firebase.';
+    mostrarMensaje('Actividades registradas para el ROLFI.');
+  }catch(e){errorFirebase(e);}
 }
 
 function obtenerNombreMes(m) {
