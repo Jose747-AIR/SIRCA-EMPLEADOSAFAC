@@ -791,6 +791,22 @@
           </div>
         </div>
 
+
+        <!-- Cambio seguro de contraseña: Firebase Authentication, no Firestore -->
+        <section class="card" id="sircaSeguridadCuenta" style="margin-top:22px">
+          <div class="card-header"><h2>🔐 Seguridad de mi cuenta</h2></div>
+          <p style="font-size:12px;color:var(--text-muted)">Cambia tu contraseña de acceso. Debes conocer tu contraseña actual.</p>
+          <form id="sircaFormPassword" onsubmit="sircaCambiarPassword(event)" autocomplete="off">
+            <div class="form-group"><label for="sircaPassActual">Contraseña actual</label><input id="sircaPassActual" type="password" autocomplete="current-password" required></div>
+            <div class="form-row">
+              <div class="form-group"><label for="sircaPassNueva">Nueva contraseña (mínimo 8 caracteres)</label><input id="sircaPassNueva" type="password" autocomplete="new-password" minlength="8" required></div>
+              <div class="form-group"><label for="sircaPassConfirmar">Confirmar nueva contraseña</label><input id="sircaPassConfirmar" type="password" autocomplete="new-password" minlength="8" required></div>
+            </div>
+            <p id="sircaPassEstado" role="status" aria-live="polite" style="font-size:12px;color:var(--text-muted)"></p>
+            <button id="sircaPassGuardar" type="submit" class="btn-primary" style="max-width:300px">Actualizar contraseña</button>
+          </form>
+        </section>
+
         <section class="premium-personal-summary" aria-label="Mi asistencia de hoy">
           <div class="premium-metric"><strong id="premiumMiEntrada">—</strong><span>Entrada de hoy</span></div>
           <div class="premium-metric"><strong id="premiumMiSalida">—</strong><span>Salida de hoy</span></div>
@@ -2140,6 +2156,48 @@ async function registrarNuevoUsuario() {
     cerrarModalRegistro(); document.getElementById('modalRegistro').querySelectorAll('input').forEach(i=>i.value='');
     mostrarMensaje('Perfil guardado. El usuario debe existir previamente en Firebase Authentication.');
   } catch(e) { errorFirebase(e); }
+}
+
+
+// Cambio de contraseña del usuario autenticado, sin escribir contraseñas en Firestore.
+async function sircaCambiarPassword(event) {
+  event.preventDefault();
+  const user = auth.currentUser;
+  const estado = document.getElementById('sircaPassEstado');
+  const boton = document.getElementById('sircaPassGuardar');
+  const actual = document.getElementById('sircaPassActual').value;
+  const nueva = document.getElementById('sircaPassNueva').value;
+  const confirmar = document.getElementById('sircaPassConfirmar').value;
+  estado.style.color = 'var(--text-muted)';
+  if (!user || !user.email) { estado.textContent = 'Inicia sesión nuevamente para continuar.'; return; }
+  if (nueva.length < 8) { estado.textContent = 'La nueva contraseña debe tener al menos 8 caracteres.'; return; }
+  if (nueva !== confirmar) { estado.textContent = 'Las contraseñas nuevas no coinciden.'; return; }
+  if (nueva === actual) { estado.textContent = 'La nueva contraseña debe ser distinta de la actual.'; return; }
+  boton.disabled = true;
+  estado.textContent = 'Verificando y actualizando contraseña…';
+  try {
+    const credencial = firebase.auth.EmailAuthProvider.credential(user.email, actual);
+    await user.reauthenticateWithCredential(credencial);
+    await user.updatePassword(nueva);
+    document.getElementById('sircaFormPassword').reset();
+    estado.style.color = '#16815d';
+    estado.textContent = 'Contraseña actualizada correctamente.';
+  } catch (err) {
+    console.error('Error al cambiar contraseña:', err.code || err.message);
+    estado.style.color = '#b91c1c';
+    const mensajes = {
+      'auth/wrong-password':'La contraseña actual es incorrecta.',
+      'auth/invalid-credential':'La contraseña actual es incorrecta o la sesión ya no es válida.',
+      'auth/weak-password':'La nueva contraseña no cumple los requisitos de seguridad.',
+      'auth/too-many-requests':'Demasiados intentos. Espera unos minutos antes de volver a intentar.',
+      'auth/requires-recent-login':'Por seguridad, cierra sesión, vuelve a ingresar e inténtalo otra vez.',
+      'auth/network-request-failed':'No hay conexión. Revisa tu internet e inténtalo de nuevo.'
+    };
+    estado.textContent = mensajes[err.code] || 'No se pudo actualizar la contraseña. Inténtalo nuevamente.';
+  } finally {
+    boton.disabled = false;
+    document.getElementById('sircaPassActual').value = '';
+  }
 }
 
 </script>
