@@ -794,6 +794,8 @@
 
         <!-- Cambio seguro de contraseña: Firebase Authentication, no Firestore -->
         <section class="card" id="sircaSeguridadCuenta" style="margin-top:22px">
+          <button type="button" id="sircaPassMostrar" class="btn-secondary" onclick="sircaAlternarPassword()" aria-expanded="false" aria-controls="sircaPassContenido">🔐 Cambiar contraseña</button>
+          <div id="sircaPassContenido" class="hidden" style="margin-top:18px">
           <div class="card-header"><h2>🔐 Seguridad de mi cuenta</h2></div>
           <p style="font-size:12px;color:var(--text-muted)">Cambia tu contraseña de acceso. Debes conocer tu contraseña actual.</p>
           <form id="sircaFormPassword" onsubmit="sircaCambiarPassword(event)" autocomplete="off">
@@ -805,6 +807,7 @@
             <p id="sircaPassEstado" role="status" aria-live="polite" style="font-size:12px;color:var(--text-muted)"></p>
             <button id="sircaPassGuardar" type="submit" class="btn-primary" style="max-width:300px">Actualizar contraseña</button>
           </form>
+          </div>
         </section>
 
         <section class="premium-personal-summary" aria-label="Mi asistencia de hoy">
@@ -2158,6 +2161,16 @@ async function registrarNuevoUsuario() {
   } catch(e) { errorFirebase(e); }
 }
 
+
+function sircaAlternarPassword() {
+  const contenido = document.getElementById('sircaPassContenido');
+  const boton = document.getElementById('sircaPassMostrar');
+  const abrir = contenido.classList.contains('hidden');
+  contenido.classList.toggle('hidden', !abrir);
+  boton.setAttribute('aria-expanded', String(abrir));
+  boton.textContent = abrir ? '🔒 Ocultar cambio de contraseña' : '🔐 Cambiar contraseña';
+  if (abrir) document.getElementById('sircaPassActual').focus();
+}
 
 // Cambio de contraseña del usuario autenticado, sin escribir contraseñas en Firestore.
 async function sircaCambiarPassword(event) {
