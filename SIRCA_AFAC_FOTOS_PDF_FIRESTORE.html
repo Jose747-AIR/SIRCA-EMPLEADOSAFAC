@@ -539,12 +539,7 @@
 
 
 /* Radar exclusivo del portal trabajador */
-.sirca-radar-panel{margin-top:24px;padding:22px 18px;border-radius:20px;background:linear-gradient(155deg,#06182c,#102c41 62%,#092c31);color:#e7f8ff;border:1px solid #2b5260;box-shadow:0 16px 38px #03142224;overflow:hidden}
-.sirca-radar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.sirca-radar-head small{color:#80a8bb;letter-spacing:1.4px;font-size:10px}.sirca-radar-head h3{margin:5px 0 0;color:#f2ffff;font-size:20px}.sirca-radar-pill{font-size:10px;font-weight:800;border:1px solid #627a89;border-radius:99px;padding:7px 10px;color:#b7c9d3}
-.sirca-radar-scope{width:min(100%,290px);aspect-ratio:1;margin:10px auto;position:relative;border-radius:50%;background:radial-gradient(circle,#113c46 0%,#082633 60%,#061c2b 100%);border:1px solid #2c6a70;overflow:hidden;box-shadow:inset 0 0 45px #071c29}
-.sirca-radar-circle{position:absolute;border:1px solid #2e827a88;border-radius:50%;inset:12%}.sirca-radar-circle.c2{inset:25%}.sirca-radar-circle.c3{inset:38%}.sirca-radar-cross{position:absolute;background:#2c827b66}.sirca-radar-cross.h{height:1px;top:50%;left:0;right:0}.sirca-radar-cross.v{width:1px;left:50%;top:0;bottom:0}.sirca-radar-sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 295deg,#20d9a400 296deg,#1cde9b77 359deg,transparent 360deg);animation:sircaRadarSpin 4s linear infinite}@keyframes sircaRadarSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sirca-radar-sweep{animation:none}}
-.sirca-radar-target{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;color:#b1f5dc;font-size:10px;font-weight:800}.sirca-radar-target b{color:#65f7ca;font-size:22px;text-shadow:0 0 14px #65f7ca}.sirca-radar-n,.sirca-radar-s,.sirca-radar-e,.sirca-radar-w{position:absolute;color:#a5c8cf;font-size:11px}.sirca-radar-n{top:7px;left:49%}.sirca-radar-s{bottom:7px;left:49%}.sirca-radar-e{right:9px;top:48%}.sirca-radar-w{left:9px;top:48%}
-.sirca-radar-status{background:#173b48;border:1px solid #345c68;border-radius:12px;padding:13px;text-align:center;color:#d9edf2;font-size:13px;line-height:1.5}.sirca-radar-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.sirca-radar-metrics>div{background:#102c3d;border:1px solid #294a59;border-radius:12px;padding:12px}.sirca-radar-metrics small{display:block;font-size:10px;color:#9fb7c6;margin-bottom:7px}.sirca-radar-metrics strong{font-size:15px;color:#f0fbff}.sirca-radar-button{display:block;width:100%;background:#087e68;color:white;border:0;border-radius:12px;padding:13px;font-weight:800;cursor:pointer}.sirca-radar-button:hover{background:#09977b}.sirca-radar-button:disabled{opacity:.6;cursor:wait}.sirca-radar-foot{color:#a5bdc8;font-size:11px;line-height:1.5;margin:12px 0 0}
+.sirca-gps-simple{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 16px;margin-top:20px;background:var(--afac-bg);border:1px solid var(--border-color);border-radius:12px}.sirca-gps-simple p{margin:5px 0 0;font-size:12px;color:var(--text-muted)}
 </style>
 </head>
 
@@ -848,20 +843,12 @@
           <div id="miContainerIncidenciasIndividuales" class="incidencias-individuales-grid"></div>
         </div>
         
-        <section class="sirca-radar-panel" aria-label="Radar de ubicación del trabajador">
-          <div class="sirca-radar-head"><div><small>SIRCA · AFAC | GEOLOCALIZACIÓN</small><h3>Radar de ubicación</h3></div><span id="sircaRadarPill" class="sirca-radar-pill">● SIN VERIFICAR</span></div>
-          <div class="sirca-radar-scope" id="sircaRadarScope">
-            <div class="sirca-radar-circle c1"></div><div class="sirca-radar-circle c2"></div><div class="sirca-radar-circle c3"></div>
-            <div class="sirca-radar-cross h"></div><div class="sirca-radar-cross v"></div><div class="sirca-radar-sweep"></div>
-            <div class="sirca-radar-target"><span>AFAC</span><b>●</b></div>
-            <span class="sirca-radar-n">N</span><span class="sirca-radar-s">S</span><span class="sirca-radar-e">E</span><span class="sirca-radar-w">O</span>
-          </div>
-          <div class="sirca-radar-status" id="sircaRadarStatus" role="status" aria-live="polite">Ubicación sin verificar. El radar es una representación visual, no un sensor de proximidad.</div>
-          <div class="sirca-radar-metrics"><div><small>PRECISIÓN GPS</small><strong id="sircaRadarAccuracy">—</strong></div><div><small>ZONA AUTORIZADA</small><strong id="sircaRadarZone">Sin configurar</strong></div></div>
-          <button type="button" class="sirca-radar-button" id="sircaRadarCheck" onclick="sircaRadarVerificar()">⌖ Verificar mi ubicación</button>
-          <p class="sirca-radar-foot">La validación de puertas 1–7 requiere un polígono oficial verificado y controles de servidor. Hasta configurarlos, este radar no autoriza ni bloquea registros QR.</p>
-          <div id="miContenedorQR" style="margin-top:12px;display:flex;justify-content:center;"></div>
+        <section class="sirca-gps-simple" aria-label="Ubicación del trabajador">
+          <div><strong>📍 Ubicación para asistencia</strong><p id="sircaRadarStatus" role="status">La geocerca interior del AIFA aún no está configurada. El registro QR continúa disponible.</p></div>
+          <button type="button" class="btn-secondary" id="sircaRadarCheck" onclick="sircaRadarVerificar()">Verificar GPS</button>
+          <span id="sircaRadarPill" class="hidden">SIN VERIFICAR</span><span id="sircaRadarAccuracy" class="hidden"></span><span id="sircaRadarZone" class="hidden"></span>
         </section>
+        <div id="miContenedorQR" style="margin-top:12px;display:flex;justify-content:center;"></div>
       </div>
 
 
@@ -1284,44 +1271,59 @@ async function sircaRadarVerificar(){
 async function registrarQRTrabajador(codigo) {
   if (registroQRTrabajadorOcupado) return;
   if (!auth.currentUser || sesionActual?.rol !== 'trabajador') {
-    mostrarEstadoQRTrabajador('Acceso exclusivo del trabajador.');return;
+    mostrarEstadoQRTrabajador('Debes iniciar sesión como trabajador.'); return;
   }
-  const uid=auth.currentUser.uid;
-  const trabajador=usuarios.find(u=>u.uid===uid || u._docId===uid);
-  if(!trabajador || String(trabajador.id)!==String(codigo)){
-    mostrarEstadoQRTrabajador('El QR no corresponde a tu credencial de trabajador.');return;
+  const uid = auth.currentUser.uid;
+  const trabajador = usuarios.find(u => u.uid === uid || u._docId === uid);
+  const qr = String(codigo || '').trim();
+  if (!trabajador || !qr || String(trabajador.id).trim() !== qr) {
+    mostrarEstadoQRTrabajador('QR incorrecto: escanea el código de tu propia credencial SIRCA.'); return;
   }
-  if(codigo===ultimoQRTrabajador && Date.now()-ultimaLecturaQRTrabajador<12000)return;
-  registroQRTrabajadorOcupado=true;
-  ultimoQRTrabajador=codigo;ultimaLecturaQRTrabajador=Date.now();
+  if (qr === ultimoQRTrabajador && Date.now() - ultimaLecturaQRTrabajador < 3500) return;
+  registroQRTrabajadorOcupado = true;
+  ultimoQRTrabajador = qr;
+  ultimaLecturaQRTrabajador = Date.now();
   try {
+    // Evitar que una segunda lectura involuntaria registre la salida de inmediato.
     await cerrarCamaraTrabajador();
-    const ahora=new Date(),fecha=fechaLocalBitacora(ahora);
-    const hora=ahora.toLocaleTimeString('es-MX',{hour12:false});
-    const ref=db.collection('asistencias').doc(uid+'_'+fecha);
-    // Consultar el estado y verificarlo nuevamente dentro de la transacción.
-    const previo=await ref.get();
-    let movimiento;
-    if(!previo.exists)movimiento='Entrada';
-    else if(previo.data().usuarioUid===uid && previo.data().salida==='-')movimiento='Salida';
-    else throw Error('Ya tienes registrada la entrada y la salida de hoy.');
-    mostrarEstadoQRTrabajador('QR reconocido. Registrando '+movimiento.toLowerCase()+'...');
-    await db.runTransaction(async tx=>{
-      const doc=await tx.get(ref);
-      if(movimiento==='Entrada' && !doc.exists){
-        tx.set(ref,{id:ref.id,usuarioUid:uid,usuarioId:trabajador.id,
-          nombre:trabajador.nombre,fecha,entrada:hora,salida:'-',estatus:'En Turno'});
-      } else if(movimiento==='Salida' && doc.exists && doc.data().usuarioUid===uid && doc.data().salida==='-'){
-        tx.update(ref,{salida:hora,estatus:'Completado'});
-      } else throw Error('El estado de la asistencia cambió. Escanea nuevamente el QR.');
+    const ahora = new Date();
+    const fecha = fechaLocalBitacora(ahora);
+    const hora = ahora.toLocaleTimeString('es-MX', {hour12:false, hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const ref = db.collection('asistencias').doc(uid + '_' + fecha);
+    mostrarEstadoQRTrabajador('QR reconocido. Verificando asistencia en Firebase…');
+    const movimiento = await db.runTransaction(async tx => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) {
+        tx.set(ref, {id:ref.id, usuarioUid:uid, usuarioId:trabajador.id,
+          nombre:trabajador.nombre, fecha, entrada:hora, salida:'-', estatus:'En Turno'});
+        return 'Entrada';
+      }
+      const datos = doc.data();
+      if (datos.usuarioUid !== uid) throw Error('Este registro no pertenece a tu cuenta.');
+      if (datos.salida && datos.salida !== '-') throw Error('Ya registraste entrada y salida el día de hoy.');
+      if (!datos.entrada || datos.entrada === '-') throw Error('El registro de entrada está incompleto. Solicita revisión al administrador.');
+      // No permitir que la misma lectura o una repetición inmediata marque salida.
+      const fechaEntrada = new Date(fecha + 'T' + datos.entrada);
+      if (!Number.isNaN(fechaEntrada.getTime()) && ahora.getTime() - fechaEntrada.getTime() < 60000) {
+        throw Error('Entrada registrada. Espera al menos un minuto antes de marcar salida.');
+      }
+      tx.update(ref, {salida:hora, estatus:'Completado'});
+      return 'Salida';
     });
-    mostrarEstadoQRTrabajador('✅ '+movimiento+' registrada correctamente a las '+hora+'. Firma a mano en la lista impresa.');
-  } catch(e){
-    console.error('Asistencia QR trabajador:',e);
-    mostrarEstadoQRTrabajador(e.code==='permission-denied'
-      ? 'Firestore rechazó el registro. Revisa las reglas de asistencia sin firma digital.'
-      : 'No se pudo registrar: '+(e.message||e));
-  } finally {registroQRTrabajadorOcupado=false;}
+    mostrarEstadoQRTrabajador('✅ ' + movimiento + ' registrada a las ' + hora + '. Firma manualmente en la lista impresa.');
+    actualizarEstadoTrabajador();
+    renderizarMiHistorialAsistencia();
+  } catch (e) {
+    console.error('Registro de asistencia:', e);
+    const msg = e.code === 'permission-denied'
+      ? 'Firebase rechazó el registro (permisos insuficientes). Revisa las reglas publicadas de asistencias.'
+      : e.code === 'unavailable'
+      ? 'No hay conexión con Firebase. Comprueba Internet e inténtalo nuevamente.'
+      : 'No se pudo registrar: ' + (e.message || e);
+    mostrarEstadoQRTrabajador(msg);
+  } finally {
+    registroQRTrabajadorOcupado = false;
+  }
 }
 
 function fechaLocalBitacora(d = new Date()) {
@@ -1682,7 +1684,7 @@ function cargarPortalTrabajador(id) {
 
   const contenedorQR = document.getElementById("miContenedorQR");
   contenedorQR.innerHTML = "";
-  new QRCode(contenedorQR, { text: u.id, width: 150, height: 150, colorDark: "#691C32", colorLight: "#FFFFFF" });
+  new QRCode(contenedorQR, { text: String(u.id), width: 150, height: 150, colorDark: "#691C32", colorLight: "#FFFFFF" });
 
   renderizarCalendarioPersonal();
   renderizarMiHistorialAsistencia();
