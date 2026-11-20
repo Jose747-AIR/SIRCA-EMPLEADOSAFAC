@@ -537,6 +537,14 @@
 @media(max-width:480px){.premium-profile-grid,.premium-personal-summary{grid-template-columns:1fr}.premium-panel{padding:15px}}
 
 
+
+/* Radar exclusivo del portal trabajador */
+.sirca-radar-panel{margin-top:24px;padding:22px 18px;border-radius:20px;background:linear-gradient(155deg,#06182c,#102c41 62%,#092c31);color:#e7f8ff;border:1px solid #2b5260;box-shadow:0 16px 38px #03142224;overflow:hidden}
+.sirca-radar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.sirca-radar-head small{color:#80a8bb;letter-spacing:1.4px;font-size:10px}.sirca-radar-head h3{margin:5px 0 0;color:#f2ffff;font-size:20px}.sirca-radar-pill{font-size:10px;font-weight:800;border:1px solid #627a89;border-radius:99px;padding:7px 10px;color:#b7c9d3}
+.sirca-radar-scope{width:min(100%,290px);aspect-ratio:1;margin:10px auto;position:relative;border-radius:50%;background:radial-gradient(circle,#113c46 0%,#082633 60%,#061c2b 100%);border:1px solid #2c6a70;overflow:hidden;box-shadow:inset 0 0 45px #071c29}
+.sirca-radar-circle{position:absolute;border:1px solid #2e827a88;border-radius:50%;inset:12%}.sirca-radar-circle.c2{inset:25%}.sirca-radar-circle.c3{inset:38%}.sirca-radar-cross{position:absolute;background:#2c827b66}.sirca-radar-cross.h{height:1px;top:50%;left:0;right:0}.sirca-radar-cross.v{width:1px;left:50%;top:0;bottom:0}.sirca-radar-sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 295deg,#20d9a400 296deg,#1cde9b77 359deg,transparent 360deg);animation:sircaRadarSpin 4s linear infinite}@keyframes sircaRadarSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sirca-radar-sweep{animation:none}}
+.sirca-radar-target{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;color:#b1f5dc;font-size:10px;font-weight:800}.sirca-radar-target b{color:#65f7ca;font-size:22px;text-shadow:0 0 14px #65f7ca}.sirca-radar-n,.sirca-radar-s,.sirca-radar-e,.sirca-radar-w{position:absolute;color:#a5c8cf;font-size:11px}.sirca-radar-n{top:7px;left:49%}.sirca-radar-s{bottom:7px;left:49%}.sirca-radar-e{right:9px;top:48%}.sirca-radar-w{left:9px;top:48%}
+.sirca-radar-status{background:#173b48;border:1px solid #345c68;border-radius:12px;padding:13px;text-align:center;color:#d9edf2;font-size:13px;line-height:1.5}.sirca-radar-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.sirca-radar-metrics>div{background:#102c3d;border:1px solid #294a59;border-radius:12px;padding:12px}.sirca-radar-metrics small{display:block;font-size:10px;color:#9fb7c6;margin-bottom:7px}.sirca-radar-metrics strong{font-size:15px;color:#f0fbff}.sirca-radar-button{display:block;width:100%;background:#087e68;color:white;border:0;border-radius:12px;padding:13px;font-weight:800;cursor:pointer}.sirca-radar-button:hover{background:#09977b}.sirca-radar-button:disabled{opacity:.6;cursor:wait}.sirca-radar-foot{color:#a5bdc8;font-size:11px;line-height:1.5;margin:12px 0 0}
 </style>
 </head>
 
@@ -840,12 +848,20 @@
           <div id="miContainerIncidenciasIndividuales" class="incidencias-individuales-grid"></div>
         </div>
         
-        <div style="margin-top:24px; text-align:center; background:var(--afac-bg); padding:20px; border-radius:16px; border:1px dashed var(--afac-dorado);">
-          <p style="margin:0 0 12px; font-size:13px; font-weight:700; color:var(--afac-guinda);">📍 Validación de Asistencia por Geolocalización (GPS AFAC)</p>
-          <button class="btn-success" onclick="validarAsistenciaGPS()" disabled>🌐 Chequeo GPS (pendiente de validación segura)</button>
-          <p id="gpsEstadoTexto" style="margin:10px 0 0; font-size:12px; color:var(--text-muted);"></p>
-          <div id="miContenedorQR" style="margin-top:15px; display:flex; justify-content:center;"></div>
-        </div>
+        <section class="sirca-radar-panel" aria-label="Radar de ubicación del trabajador">
+          <div class="sirca-radar-head"><div><small>SIRCA · AFAC | GEOLOCALIZACIÓN</small><h3>Radar de ubicación</h3></div><span id="sircaRadarPill" class="sirca-radar-pill">● SIN VERIFICAR</span></div>
+          <div class="sirca-radar-scope" id="sircaRadarScope">
+            <div class="sirca-radar-circle c1"></div><div class="sirca-radar-circle c2"></div><div class="sirca-radar-circle c3"></div>
+            <div class="sirca-radar-cross h"></div><div class="sirca-radar-cross v"></div><div class="sirca-radar-sweep"></div>
+            <div class="sirca-radar-target"><span>AFAC</span><b>●</b></div>
+            <span class="sirca-radar-n">N</span><span class="sirca-radar-s">S</span><span class="sirca-radar-e">E</span><span class="sirca-radar-w">O</span>
+          </div>
+          <div class="sirca-radar-status" id="sircaRadarStatus" role="status" aria-live="polite">Ubicación sin verificar. El radar es una representación visual, no un sensor de proximidad.</div>
+          <div class="sirca-radar-metrics"><div><small>PRECISIÓN GPS</small><strong id="sircaRadarAccuracy">—</strong></div><div><small>ZONA AUTORIZADA</small><strong id="sircaRadarZone">Sin configurar</strong></div></div>
+          <button type="button" class="sirca-radar-button" id="sircaRadarCheck" onclick="sircaRadarVerificar()">⌖ Verificar mi ubicación</button>
+          <p class="sirca-radar-foot">La validación de puertas 1–7 requiere un polígono oficial verificado y controles de servidor. Hasta configurarlos, este radar no autoriza ni bloquea registros QR.</p>
+          <div id="miContenedorQR" style="margin-top:12px;display:flex;justify-content:center;"></div>
+        </section>
       </div>
 
 
@@ -1232,6 +1248,39 @@ async function escanearImagenTrabajador(input) {
     mostrarEstadoQRTrabajador('No se pudo leer el QR: '+(e.message||e));
   } finally { input.value = ''; }
 }
+
+// Polígono real de la zona posterior a las puertas 1–7: PENDIENTE de levantamiento y autorización.
+// Formato futuro: [[latitud,longitud], ...]. No se usan coordenadas aproximadas inventadas.
+const SIRCA_GEO_POLIGONO_AUTORIZADO = [];
+function sircaPuntoEnPoligono(lat,lon,vertices){
+  let dentro=false;
+  for(let i=0,j=vertices.length-1;i<vertices.length;j=i++){
+    const yi=vertices[i][0],xi=vertices[i][1],yj=vertices[j][0],xj=vertices[j][1];
+    if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi))dentro=!dentro;
+  }
+  return dentro;
+}
+async function sircaRadarVerificar(){
+  const status=document.getElementById('sircaRadarStatus'),pill=document.getElementById('sircaRadarPill');
+  const acc=document.getElementById('sircaRadarAccuracy'),zone=document.getElementById('sircaRadarZone');
+  const btn=document.getElementById('sircaRadarCheck');
+  if(!status||!navigator.geolocation)return;
+  btn.disabled=true;status.textContent='Solicitando ubicación GPS al dispositivo…';pill.textContent='● VERIFICANDO';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    btn.disabled=false;
+    const precision=Math.round(pos.coords.accuracy);acc.textContent='± '+precision+' m';
+    if(SIRCA_GEO_POLIGONO_AUTORIZADO.length<3){
+      zone.textContent='Pendiente';pill.textContent='● SIN CONFIGURAR';
+      status.textContent='GPS obtenido (precisión ±'+precision+' m). Falta delimitar y aprobar el perímetro real del AIFA; no se puede confirmar acceso interior.';
+      return;
+    }
+    if(precision>20){zone.textContent='No verificable';pill.textContent='● GPS IMPRECISO';status.textContent='Precisión insuficiente para distinguir la terminal del estacionamiento. Intenta de nuevo cerca de una ventana.';return;}
+    const dentro=sircaPuntoEnPoligono(pos.coords.latitude,pos.coords.longitude,SIRCA_GEO_POLIGONO_AUTORIZADO);
+    zone.textContent=dentro?'Posible interior':'Fuera del área';pill.textContent=dentro?'● EN GEOCERCA':'● FUERA DE GEOCERCA';
+    status.textContent=dentro?'Ubicación dentro del polígono de referencia. No demuestra el cruce de una puerta ni autoriza todavía el registro.':'Ubicación fuera del polígono de referencia. La comprobación aún no está conectada a la autorización del registro.';
+  },err=>{btn.disabled=false;acc.textContent='—';zone.textContent='No verificable';pill.textContent='● SIN GPS';status.textContent=err.code===1?'Permite el acceso a la ubicación en tu navegador para realizar la comprobación.':'No se pudo obtener una ubicación confiable. Comprueba el GPS y la conexión.';},{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+
 async function registrarQRTrabajador(codigo) {
   if (registroQRTrabajadorOcupado) return;
   if (!auth.currentUser || sesionActual?.rol !== 'trabajador') {
