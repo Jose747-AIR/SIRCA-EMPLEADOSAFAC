@@ -15,6 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root {
       
@@ -592,6 +593,7 @@
       <button class="tab-btn active" onclick="cambiarVistaAdmin('control')">📊 Control y Operaciones</button>
       <button class="tab-btn" onclick="cambiarVistaAdmin('rolfi')">🗓️ Módulo ROLFI (Por Semana)</button>
       <button class="tab-btn" onclick="cambiarVistaAdmin('bitacora')">📋 Hoja de Firma Semanal</button>
+      <button class="tab-btn" onclick="cambiarVistaAdmin('gps')">📍 Monitoreo GPS</button>
     </div>
   </div>
 
@@ -703,6 +705,25 @@
           <div class="search-box"><input type="text" id="buscarUsuario" placeholder="Buscar trabajador..." oninput="mostrarUsuarios()"></div>
           <div id="usuariosGrid" class="users-grid"></div>
         </div>
+      </div>
+
+      <!-- CENTRO DE MONITOREO GPS (solo administrador) -->
+      <div id="vistaGpsAdmin" class="hidden">
+        <section class="card">
+          <div class="sirca-monitor-head">
+            <div><h2 style="margin:0;color:var(--text-main)">📍 Centro de Monitoreo GPS · AIFA</h2>
+            <p style="font-size:12px;color:var(--text-muted)">Mapa satelital interactivo del aeropuerto. Solo visible para el administrador.</p></div>
+            <button class="btn-secondary" type="button" onclick="sircaGpsCentrarMapa()">⌖ Centrar mapa</button>
+          </div>
+          <div class="sirca-monitor-metrics">
+            <div><strong id="sircaGpsActivos">0</strong><small>Con ubicación reciente</small></div>
+            <div><strong id="sircaGpsSinSenal">—</strong><small>Sin señal</small></div>
+            <div><strong id="sircaGpsUltima">—</strong><small>Última actualización</small></div>
+          </div>
+          <div id="sircaGpsMapa" role="region" aria-label="Mapa satelital del Aeropuerto Internacional Felipe Ángeles"></div>
+          <div class="sirca-monitor-info" id="sircaGpsAviso" role="status">Vista de mapa lista. No hay transmisión de ubicaciones de trabajadores configurada; ningún marcador representa una persona real.</div>
+          <p style="font-size:11px;color:var(--text-muted)">El seguimiento en segundo plano requiere una aplicación Android/iOS, consentimiento informado, autenticación, controles de acceso y un servicio de recepción seguro. No se activa por abrir este mapa.</p>
+        </section>
       </div>
 
       <!-- VISTA ROLFI -->
@@ -991,6 +1012,7 @@
 
 
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1153,19 +1175,43 @@ function iniciarVistaTrabajador(idTrabajador) {
 
 
 function cambiarVistaAdmin(vista) {
-  const nombres = ['control','rolfi','bitacora'];
+  const nombres = ['control','rolfi','bitacora','gps'];
   if (!nombres.includes(vista)) vista = 'control';
   const botones = document.querySelectorAll('.nav-tabs .tab-btn');
-  const ids = {control:'vistaControl',rolfi:'vistaRolfi',bitacora:'vistaBitacora'};
+  const ids = {control:'vistaControl',rolfi:'vistaRolfi',bitacora:'vistaBitacora',gps:'vistaGpsAdmin'};
   nombres.forEach((nombre, i) => {
     const panel = document.getElementById(ids[nombre]);
     if (panel) panel.classList.toggle('hidden', nombre !== vista);
     if (botones[i]) botones[i].classList.toggle('active', nombre === vista);
   });
   try {
+    if (vista === 'gps') sircaGpsAbrirMapa();
     if (vista === 'rolfi') renderizarCalendarioRolfi();
     if (vista === 'bitacora') renderizarTablaBitacora();
   } catch (error) { console.error('Error al actualizar sección:', error); }
+}
+
+// Mapa administrativo: solo visualización, sin acceso a ubicaciones reales hasta implementar backend seguro.
+let sircaGpsMapaAdmin = null;
+function sircaGpsAbrirMapa(){
+  if (sesionActual?.rol !== 'admin' || auth.currentUser?.uid !== ADMIN_UID) return;
+  if (typeof L === 'undefined') {
+    document.getElementById('sircaGpsAviso').textContent = 'No se pudo cargar el proveedor del mapa. Comprueba la conexión a internet.';
+    return;
+  }
+  if (!sircaGpsMapaAdmin) {
+    sircaGpsMapaAdmin = L.map('sircaGpsMapa', {zoomControl:true}).setView([19.7431,-99.0212],14);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom:19, attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics and GIS User Community'
+    }).addTo(sircaGpsMapaAdmin);
+    L.control.scale({imperial:false}).addTo(sircaGpsMapaAdmin);
+  }
+  setTimeout(()=>sircaGpsMapaAdmin?.invalidateSize(),80);
+}
+function sircaGpsCentrarMapa(){
+  if (sesionActual?.rol !== 'admin') return;
+  sircaGpsAbrirMapa();
+  sircaGpsMapaAdmin?.setView([19.7431,-99.0212],14);
 }
 
 // La cámara y el registro pertenecen exclusivamente al usuario autenticado.
